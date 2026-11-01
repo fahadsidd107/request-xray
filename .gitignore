@@ -45,3 +45,7 @@ logs/
 *.tmp
 *.temp
 .cache/
+
+# Track dependency lockfiles for reproducible builds
+!Cargo.lock
+!pnpm-lock.yaml
