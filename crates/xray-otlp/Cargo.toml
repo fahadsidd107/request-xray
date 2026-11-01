@@ -1,0 +1,17 @@
+[package]
+name = "xray-otlp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+build = "build.rs"
+
+[dependencies]
+prost = "=0.13.5"
+
+[build-dependencies]
+prost-build = "=0.13.5"
+protoc-bin-vendored = "=3.1.0"
+
+[lib]
+doctest = false
