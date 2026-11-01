@@ -1,0 +1,16 @@
+{
+  "name": "request-xray-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.18.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {},
+  "workspaces": [
+    "packages/*",
+    "examples/*",
+    "test/*"
+  ]
+}

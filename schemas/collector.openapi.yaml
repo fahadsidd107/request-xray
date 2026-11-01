@@ -1,0 +1,50 @@
+openapi: 3.1.0
+info:
+  title: Request X-Ray Core Collector API
+  description: API for managing the Request X-Ray OTLP collector, querying traces, and configuring instrumentation
+  version: 0.1.0
+  contact:
+    name: Muhammad Fahad Siddiqui
+    email: fahadsidd107@users.noreply.github.com
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: http://localhost:4317
+    description: Local development collector
+  - url: https://collector.request-xray.com
+    description: Production collector
+
+paths:
+  /v1/health:
+    get:
+      summary: Health check endpoint
+      description: Returns the collector's health status
+      responses:
+        '200':
+          description: Collector is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+          description: Current health status of the collector
+        uptime:
+          type: number
+          description: Time in seconds since collector started
+        version:
+          type: string
+          description: Collector version string
+      required:
+        - status
+        - uptime
+        - version

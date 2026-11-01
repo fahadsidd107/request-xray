@@ -1,0 +1,18 @@
+[workspace]
+members = [
+  "crates/*",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Muhammad Fahad Siddiqui <fahadsidd107@users.noreply.github.com>"]
+license = "Apache-2.0"
+repository = "https://github.com/fahadsidd107/request-xray"
+homepage = "https://github.com/fahadsidd107/request-xray"
+keywords = ["tracing", "observability", "otlp", "debugging"]
+categories = ["development-tools", "debugging", "profiling"]
+
+[workspace.dependencies]
+# We'll add common dependencies here as we need them

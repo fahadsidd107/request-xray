@@ -1,0 +1,32 @@
+name: Node.js CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+env:
+  PNPM_VERSION: 9.12.0
+  NODE_VERSION: 20.18.0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Node.js ${{ env.NODE_VERSION }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'pnpm'
+    - name: Enable corepack
+      run: corepack enable
+    - name: Install dependencies
+      run: pnpm install
+    - name: Run linting
+      run: pnpm lint --if-present
+    - name: Run tests
+      run: pnpm test --if-present
+    - name: Check for unused dependencies
+      run: pnpm dedupe --check
