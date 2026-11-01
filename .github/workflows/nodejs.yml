@@ -22,6 +22,8 @@ jobs:
         cache: 'pnpm'
     - name: Enable corepack
       run: corepack enable
+    - name: Activate pnpm ${{ env.PNPM_VERSION }}
+      run: corepack prepare pnpm@${{ env.PNPM_VERSION }} --activate
     - name: Install dependencies
       run: pnpm install
     - name: Run linting
