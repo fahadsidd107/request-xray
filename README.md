@@ -69,7 +69,7 @@ Legend: **P0** first useful release; **P1** next; **P2** advanced; **R** researc
 | Authenticated remote/team mode, advanced storage | R | Separate threat model and deployment mode |
 | Browser trace UI + end-user navigation | R | Browser OTel instrumentation has distinct maturity constraints |
 
-For the complete specifications see [ARCHITECTURE.md](ARCHITECTURE.md), [ROADMAP.md](ROADMAP.md), and [DOCUMENTATION.md](DOCUMENTATION.md).
+For the complete specifications see [ARCHITECTURE.md](docs/ARCHITECTURE.md), [ROADMAP.md](docs/ROADMAP.md), and [DOCUMENTATION.md](docs/DOCUMENTATION.md).
 
 ## Planned npm experience (NOT YET AVAILABLE)
 
@@ -94,7 +94,7 @@ await startXRay({
 });
 ```
 
-**Initialization order matters:** instrument **before** importing the HTTP server/framework. For Node.js, startup preload patterns and ESM loader behavior vary; follow [DOCUMENTATION.md](DOCUMENTATION.md) and version-specific OpenTelemetry docs. Running `init` may generate a preload file but cannot guarantee instrumentation of an application already loaded.
+**Initialization order matters:** instrument **before** importing the HTTP server/framework. For Node.js, startup preload patterns and ESM loader behavior vary; follow [DOCUMENTATION.md](docs/DOCUMENTATION.md) and version-specific OpenTelemetry docs. Running `init` may generate a preload file but cannot guarantee instrumentation of an application already loaded.
 
 ### Planned local ports
 
@@ -152,9 +152,9 @@ request-xray/
 ├── Cargo.toml
 ├── pnpm-workspace.yaml
 ├── README.md
-├── ARCHITECTURE.md
-├── ROADMAP.md
-└── DOCUMENTATION.md
+├── docs/ARCHITECTURE.md
+├── docs/ROADMAP.md
+└── docs/DOCUMENTATION.md
 ```
 
 ## Contributing and governance (to establish in Step 0)
@@ -168,7 +168,7 @@ request-xray/
 
 ## Current status
 
-**Specification only.** No npm package, collector, dashboard, or tests are claimed to exist yet. Start with [ROADMAP.md](ROADMAP.md) Step 0, and do not check off a task without proof from executable tests or generated artifacts.
+**Specification only.** No npm package, collector, dashboard, or tests are claimed to exist yet. Start with [ROADMAP.md](docs/ROADMAP.md) Step 0, and do not check off a task without proof from executable tests or generated artifacts.
 
 ## Authoritative specifications
 

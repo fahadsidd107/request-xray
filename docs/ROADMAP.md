@@ -1,10 +1,10 @@
 # Request X-Ray — Implementation Roadmap
 
-**Status:** Planning. All checkboxes below are initially **unchecked** because nothing has been implemented. This file is the execution contract for contributors and AI coding agents. Work sequentially unless a task explicitly allows parallelism. **A checkbox means code + tests + documented proof**, not merely files created.
+**Status:** Foundation audit in progress (2026-11-01). Checkboxes are verification gates, not counts of files created. This file is the execution contract for contributors and AI coding agents. Work sequentially unless a task explicitly allows parallelism. **A checkbox means code + tests + documented proof**, not merely files created.
 
 ## Operating instructions for contributors / Codex
 
-Read `README.md`, `ARCHITECTURE.md`, this file, and `DOCUMENTATION.md` before starting. Implement the **first unfinished task** unless directed to a specific step. Never claim unpublished packages or nonexistent commands work. Do not change public contracts without updating docs and contract tests. Maintain a short progress entry in the PR or a future `docs/progress.md`: task ID, changed paths, commands run, test results, remaining limitations. Always use reproducible demo data and offline/local tests. Do not publish npm packages without explicit owner approval.
+Read `README.md`, `docs/ARCHITECTURE.md`, this file, and `docs/DOCUMENTATION.md` before starting. Implement the **first unfinished task** unless directed to a specific step. Never claim unpublished packages or nonexistent commands work. Do not change public contracts without updating docs and contract tests. Maintain a short progress entry in the PR or a future `docs/progress.md`: task ID, changed paths, commands run, test results, remaining limitations. Always use reproducible demo data and offline/local tests. Do not publish npm packages without explicit owner approval.
 
 ### Definition of done for every subtask
 
@@ -32,14 +32,14 @@ Read `README.md`, `ARCHITECTURE.md`, this file, and `DOCUMENTATION.md` before st
 
 **Outcome:** Someone can clone the repo, understand the product, and start the dev environment without guessing.
 
-- [x] **0.1 Name and ownership:** Check availability of `request-xray` and `@request-xray/*` npm identifiers, repository name, trademark collision risk, and domain if desired. Record final names; rename examples if needed.
-- [x] **0.2 License and governance:** Add Apache-2.0 `LICENSE` only after decision; `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `SECURITY.md`, issue/PR templates, maintainer policy and release policy.
-- [x] **0.3 Toolchain:** Pin supported Rust toolchain/MSRV, Node LTS support, pnpm version via corepack/packageManager, version policy, `.editorconfig`, `.gitignore`, formatting.
+- [ ] **0.1 Name and ownership:** Check availability of `request-xray` and `@request-xray/*` npm identifiers, repository name, trademark collision risk, and domain if desired. Record final names; rename examples if needed.
+- [ ] **0.2 License and governance:** Add Apache-2.0 `LICENSE` only after decision; `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `SECURITY.md`, issue/PR templates, maintainer policy and release policy.
+- [ ] **0.3 Toolchain:** Pin supported Rust toolchain/MSRV, Node LTS support, pnpm version via corepack/packageManager, version policy, `.editorconfig`, `.gitignore`, formatting.
 - [ ] **0.4 Root scaffold:** Rust Cargo workspace, pnpm workspace, `crates/`, `packages/`, `examples/`, `tests/fixtures/`, `docs/adr/` with minimal valid manifests.
-- [x] **0.5 CI baseline:** GitHub Actions fmt, clippy, unit tests, JS lint/typecheck/tests, dependency audits and basic secret scanning, caching.
+- [ ] **0.5 CI baseline:** GitHub Actions fmt, clippy, unit tests, JS lint/typecheck/tests, dependency audits and basic secret scanning, caching.
 - [ ] **0.6 ADRs:** Write ADR-0001 to 0007 listed in `ARCHITECTURE.md`; clearly decide OTLP ACK semantics and binary distribution before implementation.
-- [x] **0.7 Contract style:** OpenAPI source-of-truth, semantic versioning standards. commit/changelog standards, API error envelope, typed config spec.
-- [x] **0.8 Documentation integrity:** README states pre-release accurately; all examples flagged planned; no fake shields/download counts.
+- [ ] **0.7 Contract style:** OpenAPI source-of-truth, semantic versioning standards. commit/changelog standards, API error envelope, typed config spec.
+- [ ] **0.8 Documentation integrity:** README states pre-release accurately; all examples flagged planned; no fake shields/download counts.
 
 **Verify:** fresh `git clone`, `cargo test --workspace`, `pnpm install --frozen-lockfile`, `pnpm -r typecheck`, `pnpm -r test`; all relevant checks run and documented. *Commands become valid only after workspace scripts are created.*
 

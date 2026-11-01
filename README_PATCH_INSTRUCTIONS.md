@@ -1,0 +1,1 @@
+Apply the included files at repository root. For `README.md`, correct any relative references to `ARCHITECTURE.md`, `ROADMAP.md`, or `DOCUMENTATION.md` to `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`, `docs/DOCUMENTATION.md`; avoid replacing README content wholesale. This patch does not certify name ownership or CI completion. See `docs/STEP0_AUDIT.md`.
