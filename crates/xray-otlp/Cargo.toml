@@ -8,6 +8,7 @@ build = "build.rs"
 
 [dependencies]
 prost = "=0.13.5"
+xray-core = { path = "../xray-core" }
 
 [build-dependencies]
 prost-build = "=0.13.5"
@@ -15,3 +16,6 @@ protoc-bin-vendored = "=3.1.0"
 
 [lib]
 doctest = false
+
+[dev-dependencies]
+proptest = { version = "=1.6.0", default-features = false, features = ["std"] }

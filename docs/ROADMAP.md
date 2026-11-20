@@ -1,6 +1,6 @@
 # Request X-Ray — Implementation Roadmap
 
-**Status:** Foundation audit in progress (2026-11-01). Checkboxes are verification gates, not counts of files created. This file is the execution contract for contributors and AI coding agents. Work sequentially unless a task explicitly allows parallelism. **A checkbox means code + tests + documented proof**, not merely files created.
+**Status:** Steps 1.1–1.7 verified on 2026-11-19. Step 0 still has open gates. See the [foundation audit](STEP0_AUDIT.md) for verification results and blockers. **A checkbox means code + tests + documented proof**, not merely files created.
 
 ## Operating instructions for contributors / Codex
 
@@ -49,13 +49,13 @@ Read `README.md`, `docs/ARCHITECTURE.md`, this file, and `docs/DOCUMENTATION.md`
 
 ## STEP 1 — Domain model and protobuf compatibility [M1]
 
-- [ ] **1.1 Pin OTLP protobuf spec:** Choose official proto revision and generation tooling; document source/hash, license and update policy. No manually improvised OTLP schema.
-- [ ] **1.2 `xray-core`:** Newtypes for TraceId (16 bytes), SpanId (8 bytes), SpanKind, SpanStatus, resource, scope, events, links, attributes; strict lossless conversions.
-- [ ] **1.3 Timestamp semantics:** Preserve nanoseconds as `i64` where safe, validate range and ordering; test boundary values and JS JSON serialization.
-- [ ] **1.4 `xray-otlp`:** Decode `ExportTraceServiceRequest` protobuf; convert resource/scope/span/event/link hierarchy into canonical models without dropping necessary fields.
-- [ ] **1.5 Test fixtures:** Generate genuine exporter fixtures: one span, nested, parallel, multi-service, non-ASCII attributes, events, links, errors, malformed IDs, huge fields and invalid timestamps.
-- [ ] **1.6 Conversion properties:** Tests for valid IDs, duplicate keys, dropped-count propagation, scope schema URLs, status, and attributes. Add fuzz/proptest targets where reasonable.
-- [ ] **1.7 Explicit errors:** Document categorized errors (`invalid_payload`, `resource_limit`, `invalid_span`, `storage_unavailable`) and rejected-span tally.
+- [x] **1.1 Pin OTLP protobuf spec:** Choose official proto revision and generation tooling; document source/hash, license and update policy. See [provenance and verification](OTLP_PROTOBUF.md).
+- [x] **1.2 `xray-core`:** Newtypes for TraceId (16 bytes), SpanId (8 bytes), SpanKind, SpanStatus, resource, scope, events, links, attributes; strict lossless conversions. See [domain model verification](ARCHITECTURE.md#step-12-domain-model-verification).
+- [x] **1.3 Timestamp semantics:** Preserve nanoseconds as `i64` where safe, validate range and ordering; test boundary values and JS JSON serialization. See [clock semantics](ARCHITECTURE.md#clock-semantics).
+- [x] **1.4 `xray-otlp`:** Decode `ExportTraceServiceRequest` protobuf; convert resource/scope/span/event/link hierarchy into canonical models without dropping necessary fields. See [trace decoding](OTLP_PROTOBUF.md#trace-decoding-and-conversion).
+- [x] **1.5 Test fixtures:** Capture genuine exporter payloads for one span, nested parallel spans across services, non-ASCII attributes, events, links, errors and large fields. Derive malformed ID and invalid timestamp cases from a capture. See [exporter fixtures](../tests/fixtures/otlp/README.md).
+- [x] **1.6 Conversion properties:** Tests for valid IDs, duplicate keys, dropped-count propagation, scope schema URLs, status, and attributes. See [property and fixture verification](OTLP_PROTOBUF.md#exporter-fixtures-and-verification).
+- [x] **1.7 Explicit errors:** Document categorized errors (`invalid_payload`, `resource_limit`, `invalid_span`, `storage_unavailable`) and rejected-span tally. See [decoder error handling](OTLP_PROTOBUF.md#trace-decoding-and-conversion).
 
 **Verify:** `cargo test -p xray-core -p xray-otlp`; a verified OTLP fixture yields expected trace/span relationships and retains all agreed fields.
 

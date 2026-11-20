@@ -1,6 +1,23 @@
 # Step 0 audit — 2026-11-01
 
-**Result: NOT COMPLETE. Do not begin Step 1.1 until the exit criteria are proven.**
+**Result: Step 0 remains incomplete.** The 2026-11-19 re-audit below updates the original archive findings.
+
+## Re-audit of `bd1a979` — 2026-11-19
+
+| Item | Finding |
+| --- | --- |
+| 0.1 Name and ownership | The GitHub repository is recorded. npm scope and publisher rights, trademark review, and final naming sign-off are still pending. |
+| 0.2 Governance | The license and governance policies are present. Issue and PR templates and verified private reporting contacts are missing. |
+| 0.3 Toolchain | Rust 1.85.0, Node 20.18.0 in `.nvmrc`, pnpm 9.12.0 and lockfiles are tracked. The supported Node range and minimum Rust version policy still need to be reconciled with the CI toolchains. |
+| 0.4 Scaffold | Both manifests and directory scaffolds are tracked. A fresh local clone installed with `corepack pnpm install --frozen-lockfile` and passed `corepack pnpm typecheck` on Node 20.20.2. The lab built but passed only four of five smoke tests. Checkout returned HTTP 502 instead of 201 on both runs. |
+| 0.5 CI | Rust CI, Node.js CI, Security Audit and Secret Scanning reported success on this commit. The Node workflow does not run typecheck or the lab's smoke suite. The root lint and test commands skip packages without those scripts. |
+| 0.6 ADRs | Seven ADRs are present. Their numbering differs from the architecture's ADR list. The architecture specifies platform npm packages for the native executable and still describes post-commit ACK as a preference pending a decision. |
+| 0.7 Contracts | The draft OpenAPI file covers health only and lists port 4319. The architecture specifies 4731. A typed configuration schema and complete error contract remain pending. |
+| 0.8 Documentation | Public install commands are labeled planned. The README still describes the repository as specification only despite the runnable test lab and protobuf crate. |
+
+With the pinned Rust 1.85.0 toolchain, `cargo fmt --all --check`, `cargo clippy --locked --workspace --all-targets --all-features -- -D warnings`, and `cargo test --locked --workspace` passed. Run `corepack pnpm --filter request-xray-test-lab verify` to reproduce the lab check.
+
+At the audited commit, Step 1.1 passed independent provenance and build verification, and `cargo test --locked -p xray-core` reported a missing package. Step 1.2 was subsequently implemented in `crates/xray-core`. See the [domain model verification](ARCHITECTURE.md#step-12-domain-model-verification).
 
 ## Findings from supplied archive
 

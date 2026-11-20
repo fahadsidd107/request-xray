@@ -153,17 +153,28 @@ Evidence    rule_id, trace/span refs, measured values, confidence label,
 
 Keep event timestamps, link attributes, resource attributes, dropped counters, schema URLs, and status details. Do not flatten away OTLP semantics. Span kind is `INTERNAL`, `SERVER`, `CLIENT`, `PRODUCER`, `CONSUMER` or unspecified. IDs are opaque; do not manufacture parents for unparented spans.
 
+### Step 1.2 domain model verification
+
+`xray-core` accepts IDs as fixed-size arrays, byte slices or exact-length hexadecimal strings. It rejects incorrect lengths, nonhex digits and all-zero values. Hex input is case-insensitive and display emits lowercase with leading zeroes preserved. An absent parent is represented with `None`. Kind and status retain unrecognized numeric codes.
+
+The model preserves resource and scope presence, separate schema URLs, entity references, trace state, flags, dropped counts and optional status details. Ordered attribute lists retain duplicate entries for later validation. Attributes preserve nested arrays and lists, bytes, signed integers, doubles and the distinction between an absent value and an explicitly empty value. See [trace decoding](OTLP_PROTOBUF.md#trace-decoding-and-conversion) for the wire mapping. Ingestion limits and redaction belong at the collector boundary before storage.
+
+On 2026-11-19 with Rust 1.85.0, `cargo fmt --all --check`, `cargo clippy --offline --locked --workspace --all-targets --all-features -- -D warnings`, and `cargo test --offline --locked --workspace` passed. The domain tests cover binary and hexadecimal round trips, malformed ID rejection, and preservation of numeric codes.
+
 ### Late arrival and trace completeness
 
 A trace is not "finished" merely because an HTTP response returned. Asynchronous consumers may appear later. Track `last_seen_at` and a configurable inactivity threshold for UI grouping, label trace completion as **observational/heuristic**, and permit late-arriving spans to update the trace. Missing parents may reflect sampling, collector loss, or uninstrumented services; show an explicit gap.
 
 ### Clock semantics
 
-- Ingest nanosecond timestamps as 64-bit integers (with SQLite signed-int limits considered).
-- Enforce `end_ns >= start_ns` except invalid data handling; preserve original value for diagnostics if rejected.
+- `UnixNanos` accepts epoch nanoseconds from 0 through `i64::MAX` inclusive, which fit a signed SQLite integer. Negative values and unsigned values above that range return `TimestampOutOfRange`.
+- `SpanInterval` enforces `end_ns >= start_ns` and allows zero-duration spans. Event timestamps use the same range and can fall outside the enclosing span interval. Cross-span ordering can reflect clock skew.
+- `UnixNanos` serializes to a decimal JSON string. JavaScript can parse the string as `BigInt` for exact arithmetic.
 - Show durations using each span's own timestamps; mark suspect cross-host ordering when skew is detected.
 - Exclusive wall-clock time = span duration minus union of overlapping direct-child intervals **within the parent interval**, not simply sum of child durations.
 - Critical path in a DAG needs async links, clock constraints, and unobserved work caveats. In v0.1 show parent-child waterfall; introduce "critical path" only after dedicated algorithm and reference fixtures.
+
+Step 1.3 verification passed on Rust 1.85.0 and Node 20.20.2. Run `cargo test --offline --locked -p xray-core` and `node --test test/tests/timestamp-json.test.cjs`. The Node test invokes the Rust example and confirms that successive timestamps above JavaScript's safe integer range remain one nanosecond apart after parsing the JSON.
 
 ## 6. Storage architecture
 
