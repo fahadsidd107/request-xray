@@ -36,9 +36,9 @@ Use `decode_export_report(payload, max_payload_bytes)` to apply a byte limit bef
 | Category | Condition and handling |
 | --- | --- |
 | `invalid_payload` | Malformed OTLP protobuf. Reject the request. |
-| `resource_limit` | The payload exceeds the configured byte limit. Reject before protobuf decoding. Compression and finer-grained ingestion limits are Step 2 work. |
+| `resource_limit` | The payload exceeds the configured byte limit. Reject before protobuf decoding. The collector also enforces [compression and structural limits](COLLECTOR.md#configuration-and-limits). |
 | `invalid_span` | An ID, timestamp or interval failed validation. Strict conversion returns an error. Report mode omits the span and increments the rejected-span tally. |
-| `storage_unavailable` | Reserved for ingestion when accepted spans cannot be committed. The decoder has no storage dependency. HTTP response, retry and acknowledgment handling belong to Steps 2–3. |
+| `storage_unavailable` | Reserved for ingestion when accepted spans cannot be committed. The decoder has no storage dependency. The collector maps sink unavailability to HTTP 503. Durable acknowledgment belongs to Step 2.7 and Step 3. |
 
 Expose the stable category from `DecodeError::code()` for decoder diagnostics. Report mode returns decoded data and a rejection count. The eventual collector must decide the OTLP response after storage and must account for conversion rejections before acknowledging an export. Decoder error messages contain structural positions and field details.
 

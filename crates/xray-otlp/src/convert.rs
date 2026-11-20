@@ -28,15 +28,21 @@ pub fn decode_export_report(
         return Err(DecodeError::ResourceLimit { max_payload_bytes });
     }
 
+    Ok(convert_export_report(decode_request(payload)?))
+}
+
+/// Convert a decoded request after the caller has checked its structural limits.
+pub fn convert_export_report(request: ExportTraceServiceRequest) -> DecodeReport {
     let mut rejected_spans = 0;
-    let resource_spans = convert_export(decode_request(payload)?, |_| {
+    let resource_spans = convert_export(request, |_| {
         rejected_spans += 1;
         Ok(())
-    })?;
-    Ok(DecodeReport {
+    })
+    .expect("the rejection callback always succeeds");
+    DecodeReport {
         resource_spans,
         rejected_spans,
-    })
+    }
 }
 
 pub struct DecodeReport {

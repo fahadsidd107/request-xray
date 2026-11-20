@@ -4,8 +4,8 @@
 mod convert;
 
 pub use convert::{
-    convert_span, decode_export, decode_export_report, DecodeError, DecodeReport, IdField,
-    SpanError, TimeField,
+    convert_export_report, convert_span, decode_export, decode_export_report, DecodeError,
+    DecodeReport, IdField, SpanError, TimeField,
 };
 
 pub mod opentelemetry {

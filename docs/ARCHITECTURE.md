@@ -1,6 +1,6 @@
 # Request X-Ray — System Architecture
 
-**Status:** Proposed architecture, v0 design. **Audience:** maintainers, Rust/TypeScript contributors, AI coding agents, reviewers. **Rule:** This document is normative for implementation unless superseded by a reviewed ADR (Architecture Decision Record). No component described here is implemented yet.
+**Status:** Proposed architecture, v0 design. **Audience:** maintainers, Rust/TypeScript contributors, AI coding agents, reviewers. **Rule:** This document is normative for implementation unless superseded by a reviewed ADR (Architecture Decision Record). The canonical domain types, OTLP decoder and initial loopback collector are implemented. See the [collector guide](COLLECTOR.md) for the current receiver behavior.
 
 ## 1. Goals, non-goals, constraints
 
@@ -108,18 +108,18 @@ Avoid cyclic crate dependencies. Depend on small repository/queue traits at boun
 
 ### Ingestion stages
 
-1. TCP/HTTP accept, request ID, loopback listener check.
+1. Accept on the loopback listener. Validate routing and headers, then acquire an ingestion slot before reading the body.
 2. Validate path/method/content type, enforce body limits and optional gzip processing.
 3. Protobuf decode; distinguish malformed transport from individually invalid spans.
 4. Canonicalize resource and instrumentation-scope metadata.
 5. Validate span IDs, temporal ordering, attribute types, size, and allowable clock skew without changing valid timestamps.
 6. Apply privacy controls **before persistence**; reject or remove forbidden attributes.
-7. Admit accepted spans to a bounded queue (defined overflow response and counters).
+7. Pass the sanitized batch to the sink within the admitted request.
 8. Batch transactional writes and record ingestion statistics.
 9. Materialize/query trace summaries lazily or incrementally, benchmark-dependent.
-10. Respond according to OTLP acceptance semantics. If acknowledging only after durable persistence is configured, document the durability/performance tradeoff.
+10. Acknowledge accepted spans after the sink confirms commitment.
 
-**Acknowledgment contract decision required by Step 2 ADR:** Choose either "accepted into memory queue" or "durably committed" as the success boundary; document behavior, failure windows, and crash recovery. The preferred v0.1 choice is **acknowledge after SQLite transaction commit** with bounded concurrency, until throughput benchmarks justify a queue-ack model. Never return success while work is merely untracked or discarded.
+The ingestion acknowledgment boundary is SQLite transaction commit. The collector already gates success on the sink outcome. The durable sink is added in Step 3. [Acknowledgment ADR](adr/0008-acknowledge-ingestion-after-commit.md)
 
 ### Node instrumentation
 

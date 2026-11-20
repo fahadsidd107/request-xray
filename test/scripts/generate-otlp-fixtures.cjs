@@ -8,6 +8,7 @@ const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-proto'
 const { resourceFromAttributes } = require('@opentelemetry/resources');
 const { AlwaysOnSampler, InMemorySpanExporter, SimpleSpanProcessor, TracerProvider } = require('@opentelemetry/sdk-trace');
 
+const verifyCollector = process.argv[2] === '--verify-collector';
 const output = process.argv[2] ?? path.resolve(__dirname, '../../tests/fixtures/otlp');
 const epochSeconds = 1_793_500_000;
 const time = (nanos) => [epochSeconds, nanos];
@@ -47,10 +48,20 @@ async function main() {
     captured = Buffer.concat(chunks);
     response.writeHead(200, { 'Content-Type': 'application/x-protobuf' }).end();
   });
-  server.listen(0, '127.0.0.1');
-  await once(server, 'listening');
+  let url;
+  if (verifyCollector) {
+    const target = new URL(process.argv[3]);
+    assert.equal(target.protocol, 'http:');
+    assert.ok(['127.0.0.1', '[::1]'].includes(target.hostname));
+    assert.equal(target.pathname, '/v1/traces');
+    url = target.href;
+  } else {
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    url = `http://127.0.0.1:${server.address().port}/v1/traces`;
+  }
   const exporter = new OTLPTraceExporter({
-    url: `http://127.0.0.1:${server.address().port}/v1/traces`,
+    url,
     compression: 'none',
     timeoutMillis: 5000,
   });
@@ -64,8 +75,12 @@ async function main() {
     captured = undefined;
     const result = await new Promise((resolve) => exporter.export(memory.getFinishedSpans(), resolve));
     assert.equal(result.code, 0, result.error?.message);
-    assert.ok(captured?.length);
-    await writeFile(path.join(output, name), captured);
+    if (!verifyCollector) {
+      assert.ok(captured?.length);
+      await writeFile(path.join(output, name), captured);
+    } else {
+      console.log(`Collector accepted ${name}`);
+    }
     memory.reset();
   }
 
@@ -91,14 +106,16 @@ async function main() {
     root.end(time(70));
     await capture('distributed.pb');
 
-    tracer.startSpan('large-attribute', {
-      startTime: time(80),
-      attributes: { value: 'x'.repeat(64 * 1024) },
-    }, ROOT_CONTEXT).end(time(81));
-    await capture('large-attribute.pb');
+    if (!verifyCollector) {
+      tracer.startSpan('large-attribute', {
+        startTime: time(80),
+        attributes: { value: 'x'.repeat(64 * 1024) },
+      }, ROOT_CONTEXT).end(time(81));
+      await capture('large-attribute.pb');
+    }
   } finally {
     await Promise.allSettled([orders.shutdown(), payments.shutdown(), exporter.shutdown()]);
-    server.close();
+    if (server.listening) server.close();
   }
 }
 

@@ -1,0 +1,20 @@
+[package]
+name = "xray-collector"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
+flate2 = "1"
+http-body-util = "0.1"
+prost = "=0.13.5"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+xray-core = { path = "../xray-core" }
+xray-otlp = { path = "../xray-otlp" }
+
+[dev-dependencies]
+http-body = "1"
+tokio = { version = "1", features = ["io-util"] }
+tower = { version = "0.5", features = ["util"] }

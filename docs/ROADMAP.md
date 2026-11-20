@@ -1,6 +1,6 @@
 # Request X-Ray — Implementation Roadmap
 
-**Status:** Steps 1.1–1.7 verified on 2026-11-19. Step 0 still has open gates. See the [foundation audit](STEP0_AUDIT.md) for verification results and blockers. **A checkbox means code + tests + documented proof**, not merely files created.
+**Status:** Steps 1.1–1.7 and 2.1–2.9 verified. See the [collector verification](COLLECTOR.md#verification-results). Step 0 still has open gates. See the [foundation audit](STEP0_AUDIT.md) for verification results and blockers. **A checkbox means code + tests + documented proof**, not merely files created.
 
 ## Operating instructions for contributors / Codex
 
@@ -65,15 +65,15 @@ Read `README.md`, `docs/ARCHITECTURE.md`, this file, and `docs/DOCUMENTATION.md`
 
 ## STEP 2 — Rust collector and ingestion safety [M1]
 
-- [ ] **2.1 Axum server:** `xray-collector`, config-driven OTLP listener `127.0.0.1:4318`, health endpoint on query listener later.
-- [ ] **2.2 OTLP POST:** `/v1/traces` with protobuf, correct content type, appropriate OTLP success response and rejection semantics.
-- [ ] **2.3 Gzip:** Support `Content-Encoding: gzip` and strict compressed/decompressed caps; reject unsupported encodings.
-- [ ] **2.4 Security:** Local bind only, request size ceiling, attribute/event/span caps, strict decoding; avoid body/secret logs.
-- [ ] **2.5 Redaction:** Default denylist and per-attribute allow/deny config; strip risky URL query strings, auth/cookies, token-like fields before storage.
-- [ ] **2.6 Backpressure:** Bounded ingestion concurrency/queue, admission rejection, accounting and tests; no unbounded `tokio::spawn` per payload.
-- [ ] **2.7 ACK semantics:** Implement ADR policy; preferred initial ACK after successful SQLite commit (integration in Step 3), no false positives.
-- [ ] **2.8 Counters/diagnostics:** Accepted/rejected/redacted/duplicate spans, size errors, write failures, source endpoint; no PII.
-- [ ] **2.9 Negative tests:** Invalid protobuf, wrong media type, oversize/gzip bomb, queue full, timeout, collector shutdown, no side effects after rejection.
+- [x] **2.1 Axum server:** `xray-collector`, config-driven OTLP listener `127.0.0.1:4318`, health endpoint on query listener later.
+- [x] **2.2 OTLP POST:** `/v1/traces` with protobuf, correct content type, appropriate OTLP success response and rejection semantics.
+- [x] **2.3 Gzip:** Support `Content-Encoding: gzip` and strict compressed/decompressed caps; reject unsupported encodings.
+- [x] **2.4 Security:** Local bind only, request size ceiling, attribute/event/span caps, strict decoding; avoid body/secret logs.
+- [x] **2.5 Redaction:** Default denylist and per-attribute allow/deny config; strip risky URL query strings, auth/cookies, token-like fields before storage.
+- [x] **2.6 Backpressure:** Bounded concurrent admission with zero queued requests, immediate retryable rejection and accounting.
+- [x] **2.7 ACK semantics:** Gate the acknowledgment on the sink’s committed outcome according to [ADR 0008](adr/0008-acknowledge-ingestion-after-commit.md). SQLite integration is Step 3.
+- [x] **2.8 Counters/diagnostics:** Accepted/rejected/redacted/duplicate spans, size errors, write failures, source endpoint; no PII.
+- [x] **2.9 Negative tests:** Invalid protobuf, wrong media type, oversize/gzip bomb, queue full, timeout, collector shutdown, no side effects after rejection.
 
 **Verify:** real OTel exporter POSTs protobuf to `/v1/traces`; invalid payload returns documented error; gzip works; collector remains stable under bounded stress.
 
