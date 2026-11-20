@@ -13,8 +13,10 @@ prost = "=0.13.5"
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 xray-core = { path = "../xray-core" }
 xray-otlp = { path = "../xray-otlp" }
+xray-storage = { path = "../xray-storage" }
 
 [dev-dependencies]
 http-body = "1"
-tokio = { version = "1", features = ["io-util"] }
+tempfile = "3"
+tokio = { version = "1", features = ["io-util", "process"] }
 tower = { version = "0.5", features = ["util"] }

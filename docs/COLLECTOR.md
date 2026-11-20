@@ -7,7 +7,7 @@ The `xray-collector` crate exposes `POST /v1/traces` on `127.0.0.1:4318` by defa
 Install the test lab dependencies with `corepack pnpm install --frozen-lockfile`. Start the collector locally:
 
 ```sh
-cargo run --locked -p xray-collector -- --validate-only
+cargo run --locked -p xray-collector
 ```
 
 In another terminal, send deterministic spans from the official OpenTelemetry JavaScript protobuf exporter:
@@ -16,7 +16,7 @@ In another terminal, send deterministic spans from the official OpenTelemetry Ja
 node test/scripts/generate-otlp-fixtures.cjs --verify-collector http://127.0.0.1:4318/v1/traces
 ```
 
-Expect `Collector accepted single.pb` and `Collector accepted distributed.pb`. Validation-only mode exercises ingestion and redaction, then discards the batch. The standalone binary returns HTTP 503 for requests containing accepted spans outside this mode until persistence is wired. The library waits for the sink result before acknowledging a batch. The production sink must report commitment after its SQLite transaction succeeds. [Acknowledgment ADR](adr/0008-acknowledge-ingestion-after-commit.md)
+Expect `Collector accepted single.pb` and `Collector accepted distributed.pb`. By default the collector writes to SQLite and acknowledges accepted spans after commit. Pass `--validate-only` to exercise ingestion and redaction and discard the batch. [SQLite configuration](STORAGE.md) [Acknowledgment ADR](adr/0008-acknowledge-ingestion-after-commit.md)
 
 ## Request and response contract
 
@@ -24,8 +24,8 @@ The endpoint accepts `Content-Type: application/x-protobuf` and either identity 
 
 | HTTP status | Condition |
 | --- | --- |
-| 200 | The request contains no spans or the sink accepted every valid span. If some spans were invalid, `partial_success.rejected_spans` reports their count. |
-| 400 | The gzip or protobuf body is invalid, the request body cannot be read, or every span fails ID or timestamp validation. |
+| 200 | The request contains no spans or the sink accepted every valid span. If some spans were invalid or conflicted, `partial_success.rejected_spans` reports their count. |
+| 400 | The gzip or protobuf body is invalid, the request body cannot be read, or every span is invalid or conflicts with a committed span identity. |
 | 408 | The admitted request exceeded the body read timeout. |
 | 413 | A compressed, decompressed, protobuf field, nesting or trace structure limit was exceeded. The entire request is rejected. |
 | 415 | The content type or content encoding is missing where required, ambiguous or unsupported. |
@@ -58,7 +58,7 @@ A permit covers body reading, decoding, redaction and the sink call. Admission n
 
 `Ingestion::diagnostics()` returns aggregate counters for the fixed source endpoint `/v1/traces`. The binary prints the snapshot on graceful shutdown. It contains no client addresses, telemetry IDs, attribute names or values.
 
-- Accepted spans count successful sink outcomes, including duplicates. Duplicate spans count the subset reported by the sink. Validation-only spans have their own counter.
+- Accepted spans count successful sink outcomes, including duplicates. Duplicate spans count the subset reported by the sink. Conflicts count separately and are also included in rejected spans. Validation-only spans have their own counter.
 - Rejected spans count individual domain validation failures. Requests rejected before domain conversion are accounted for separately as size, invalid payload, admission, shutdown or body timeout events.
 - Redacted spans count spans with changes to their own fields, events or links. Redacted fields also include resource and scope changes. Redaction counts reflect work done even if the sink subsequently fails.
 - Write failures include sink errors and timeouts. Write timeouts are also counted separately.
@@ -66,3 +66,5 @@ A permit covers body reading, decoding, redaction and the sink call. Admission n
 ## Verification results
 
 On 2026-11-20, the live exporter sent both test batches to a collector bound to an OS-assigned loopback port in validation-only mode. SIGTERM exited cleanly and printed four validation-only spans, one redacted span and zero committed spans. Run `cargo test --offline --locked -p xray-collector` for ten passing integration tests covering loopback binding, protobuf full and partial success, malformed input, gzip and structural limits, redaction, saturation, acknowledgment ordering, timeouts, counters and live connection drain.
+
+The [storage verification](STORAGE.md#verification) covers acknowledgments with SQLite enabled and process restart.

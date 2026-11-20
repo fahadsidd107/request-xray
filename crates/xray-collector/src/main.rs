@@ -1,4 +1,6 @@
-use std::{env, error::Error, io, time::Duration};
+use std::{env, error::Error, io, path::PathBuf, time::Duration};
+
+use xray_storage::{Repository, Retention};
 
 use xray_collector::{Config, Diagnostics, Ingestion, SinkOutcome, StorageUnavailable};
 
@@ -56,35 +58,109 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let listener = config.bind().await?;
     let shutdown = shutdown_signal()?;
+    let storage = if validate_only {
+        None
+    } else {
+        Some(open_storage().await?)
+    };
     let mode = if validate_only {
         "validation only"
     } else {
-        "storage unavailable"
+        "SQLite storage"
     };
     eprintln!(
         "OTLP/HTTP listener at http://{}/v1/traces ({mode})",
         listener.local_addr()?
     );
+
+    let maintenance = storage.as_ref().map(|(repository, retention)| {
+        let repository = repository.clone();
+        let retention = *retention;
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(60));
+            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+            interval.tick().await;
+            loop {
+                interval.tick().await;
+                match repository.enforce_retention(retention).await {
+                    Ok(report)
+                        if report.deleted_traces != 0
+                            || report.live_bytes > retention.max_bytes =>
+                    {
+                        eprintln!(
+                            "SQLite retention removed {} traces, {} live bytes",
+                            report.deleted_traces, report.live_bytes
+                        );
+                    }
+                    Ok(_) => {}
+                    Err(_) => eprintln!("SQLite retention failed"),
+                }
+            }
+        })
+    });
     let ingestion = Ingestion::new(config);
-    ingestion
+    let repository = storage.as_ref().map(|(repository, _)| repository.clone());
+    let result = ingestion
         .serve(
             listener,
-            move |_batch| async move {
-                if validate_only {
-                    Ok(SinkOutcome::ValidationOnly)
-                } else {
-                    Err(StorageUnavailable)
+            move |batch| {
+                let repository = repository.clone();
+                async move {
+                    let Some(repository) = repository else {
+                        return Ok(SinkOutcome::ValidationOnly);
+                    };
+                    let report = repository
+                        .write_batch(batch)
+                        .await
+                        .map_err(|_| StorageUnavailable)?;
+                    Ok(SinkOutcome::Committed {
+                        duplicate_spans: report.duplicate_spans,
+                        conflicting_spans: report.conflicting_spans,
+                    })
                 }
             },
             shutdown,
         )
-        .await?;
+        .await;
+    if let Some(task) = maintenance {
+        task.abort();
+        let _ = task.await;
+    }
+    if let Some((repository, _)) = storage {
+        repository.close().await;
+    }
+    result?;
     eprintln!(
         "OTLP {} diagnostics: {:?}",
         Diagnostics::SOURCE_ENDPOINT,
         ingestion.diagnostics()
     );
     Ok(())
+}
+
+async fn open_storage() -> Result<(Repository, Retention), Box<dyn Error>> {
+    let path = env::var_os("REQUEST_XRAY_DB_PATH")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(".request-xray/traces.sqlite"));
+    if let Some(parent) = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        std::fs::create_dir_all(parent)?;
+    }
+    let mut retention = Retention::default();
+    if let Some(seconds) = env_value("REQUEST_XRAY_RETENTION_AGE_SECONDS")? {
+        retention.max_age = Duration::from_secs(seconds.parse()?);
+    }
+    if let Some(bytes) = env_value("REQUEST_XRAY_RETENTION_MAX_BYTES")? {
+        retention.max_bytes = bytes.parse()?;
+    }
+    let repository = Repository::open(path).await.map_err(io::Error::other)?;
+    repository
+        .enforce_retention(retention)
+        .await
+        .map_err(io::Error::other)?;
+    Ok((repository, retention))
 }
 
 fn shutdown_signal() -> io::Result<impl std::future::Future<Output = ()>> {

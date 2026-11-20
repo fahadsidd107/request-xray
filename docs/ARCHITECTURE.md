@@ -1,6 +1,6 @@
 # Request X-Ray — System Architecture
 
-**Status:** Proposed architecture, v0 design. **Audience:** maintainers, Rust/TypeScript contributors, AI coding agents, reviewers. **Rule:** This document is normative for implementation unless superseded by a reviewed ADR (Architecture Decision Record). The canonical domain types, OTLP decoder and initial loopback collector are implemented. See the [collector guide](COLLECTOR.md) for the current receiver behavior.
+**Status:** Proposed architecture, v0 design. **Audience:** maintainers, Rust/TypeScript contributors, AI coding agents, reviewers. **Rule:** This document is normative for implementation unless superseded by a reviewed ADR (Architecture Decision Record). The canonical domain types, OTLP decoder, loopback collector and SQLite repository are implemented. See the [collector guide](COLLECTOR.md) for the current receiver behavior.
 
 ## 1. Goals, non-goals, constraints
 
@@ -119,7 +119,7 @@ Avoid cyclic crate dependencies. Depend on small repository/queue traits at boun
 9. Materialize/query trace summaries lazily or incrementally, benchmark-dependent.
 10. Acknowledge accepted spans after the sink confirms commitment.
 
-The ingestion acknowledgment boundary is SQLite transaction commit. The collector already gates success on the sink outcome. The durable sink is added in Step 3. [Acknowledgment ADR](adr/0008-acknowledge-ingestion-after-commit.md)
+The ingestion acknowledgment boundary is SQLite transaction commit. The collector waits for SQLite commit before acknowledging accepted spans. [Acknowledgment ADR](adr/0008-acknowledge-ingestion-after-commit.md)
 
 ### Node instrumentation
 
@@ -178,7 +178,11 @@ Step 1.3 verification passed on Rust 1.85.0 and Node 20.20.2. Run `cargo test --
 
 ## 6. Storage architecture
 
-### SQLite v0.1 schema (logical draft)
+### SQLite implementation
+
+See the [storage guide](STORAGE.md) and the [SQLx migration](../crates/xray-storage/migrations/0001_traces.sql) for the implemented schema and retention behavior.
+
+### Original schema sketch
 
 ```sql
 CREATE TABLE resources (

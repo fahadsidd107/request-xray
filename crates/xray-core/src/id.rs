@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::{error::Error, fmt, str::FromStr};
 
 /// An ID failed length, encoding, or nonzero validation.
@@ -39,9 +40,12 @@ fn hex_nibble(byte: u8) -> Result<u8, InvalidId> {
 }
 
 macro_rules! define_id {
-    ($name:ident, $length:literal, $doc:literal) => {
+    ($name:ident, $length:literal, $doc:literal, $array:literal) => {
         #[doc = $doc]
-        #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+        #[derive(
+            Serialize, Deserialize, Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd,
+        )]
+        #[serde(try_from = $array)]
         pub struct $name([u8; $length]);
 
         impl $name {
@@ -103,8 +107,13 @@ macro_rules! define_id {
     };
 }
 
-define_id!(TraceId, 16, "A nonzero 16-byte trace identifier.");
-define_id!(SpanId, 8, "A nonzero 8-byte span identifier.");
+define_id!(
+    TraceId,
+    16,
+    "A nonzero 16-byte trace identifier.",
+    "[u8; 16]"
+);
+define_id!(SpanId, 8, "A nonzero 8-byte span identifier.", "[u8; 8]");
 
 #[cfg(test)]
 mod tests {

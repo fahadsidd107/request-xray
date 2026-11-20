@@ -10,4 +10,4 @@ Admission uses a bounded number of in-flight requests and zero internal queue sl
 
 ## Consequences
 
-Commit latency is part of export latency, and slow writes occupy admission slots. The sink must avoid detached writes and handle cancellation of work that has yet to commit. A timeout, crash or disconnect can hide a commit that already happened. The Step 3 writer must handle retries idempotently using trace and span identity, and report duplicate counts after commit. Persistence, rollback and crash recovery must be verified with the SQLite implementation in Step 3.
+Commit latency is part of export latency, and slow writes occupy admission slots. The sink must avoid detached writes and handle cancellation of work that has yet to commit. A timeout, crash or disconnect can hide a commit that already happened. The SQLite writer handles retries by trace and span identity and reports duplicates after commit. Persistence, rollback and restart recovery are covered by the [storage tests](../STORAGE.md#verification).

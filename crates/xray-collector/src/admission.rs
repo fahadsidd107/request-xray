@@ -33,6 +33,7 @@ pub struct Diagnostics {
     pub redacted_spans: u64,
     pub redacted_fields: u64,
     pub duplicate_spans: u64,
+    pub conflicting_spans: u64,
     pub validation_only_spans: u64,
     pub size_errors: u64,
     pub invalid_payloads: u64,
@@ -50,7 +51,10 @@ impl Diagnostics {
 /// A sink reports commitment only after its durable transaction succeeds.
 /// Validation-only mode is a separate outcome for local testing.
 pub enum SinkOutcome {
-    Committed { duplicate_spans: usize },
+    Committed {
+        duplicate_spans: usize,
+        conflicting_spans: usize,
+    },
     ValidationOnly,
 }
 

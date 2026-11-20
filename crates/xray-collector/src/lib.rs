@@ -77,7 +77,10 @@ where
         let result = sink(batch);
         async move {
             result.await?;
-            Ok(SinkOutcome::Committed { duplicate_spans: 0 })
+            Ok(SinkOutcome::Committed {
+                duplicate_spans: 0,
+                conflicting_spans: 0,
+            })
         }
     })
 }
@@ -238,6 +241,7 @@ where
         .sum();
     ingestion.record(|stats| stats.rejected_spans += report.rejected_spans as u64);
 
+    let mut conflicts = 0;
     if valid_spans != 0 {
         let (redacted_spans, redacted_fields) =
             config.redaction.sanitize(&mut report.resource_spans);
@@ -250,10 +254,17 @@ where
         })
         .await
         {
-            Ok(Ok(SinkOutcome::Committed { duplicate_spans })) => {
+            Ok(Ok(SinkOutcome::Committed {
+                duplicate_spans,
+                conflicting_spans,
+            })) => {
+                conflicts = conflicting_spans.min(valid_spans);
+                let accepted = valid_spans - conflicts;
                 ingestion.record(|stats| {
-                    stats.accepted_spans += valid_spans as u64;
-                    stats.duplicate_spans += duplicate_spans.min(valid_spans) as u64;
+                    stats.accepted_spans += accepted as u64;
+                    stats.duplicate_spans += duplicate_spans.min(accepted) as u64;
+                    stats.conflicting_spans += conflicts as u64;
+                    stats.rejected_spans += conflicts as u64;
                 });
             }
             Ok(Ok(SinkOutcome::ValidationOnly)) => {
@@ -271,20 +282,26 @@ where
                 return retryable_failure("storage_unavailable: write timeout");
             }
         }
-    } else if report.rejected_spans != 0 {
+    }
+    let rejected = report.rejected_spans + conflicts;
+    if valid_spans == conflicts && rejected != 0 {
         return failure(
             StatusCode::BAD_REQUEST,
-            "invalid_span: all spans failed validation",
+            "invalid_span: no spans could be accepted",
         );
     }
 
     protobuf_response(
         StatusCode::OK,
         ExportTraceServiceResponse {
-            partial_success: (report.rejected_spans != 0).then(|| ExportTracePartialSuccess {
+            partial_success: (rejected != 0).then(|| ExportTracePartialSuccess {
                 // The protobuf input byte count bounds the number of spans.
-                rejected_spans: report.rejected_spans as i64,
-                error_message: "invalid_span: invalid ID or timestamp".into(),
+                rejected_spans: rejected as i64,
+                error_message: if conflicts == 0 {
+                    "invalid_span: invalid ID or timestamp".into()
+                } else {
+                    "invalid_span: span validation or identity conflict".into()
+                },
             }),
         },
     )

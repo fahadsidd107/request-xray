@@ -502,7 +502,10 @@ async fn rejects_over_capacity_before_reading_and_acknowledges_only_after_commit
             async move {
                 started.notify_one();
                 commit.notified().await;
-                Ok(SinkOutcome::Committed { duplicate_spans: 1 })
+                Ok(SinkOutcome::Committed {
+                    duplicate_spans: 1,
+                    conflicting_spans: 0,
+                })
             }
         }
     });
@@ -640,7 +643,10 @@ async fn shutdown_drains_admitted_commit_on_a_live_connection() {
                         async move {
                             started.notify_one();
                             commit.notified().await;
-                            Ok(SinkOutcome::Committed { duplicate_spans: 0 })
+                            Ok(SinkOutcome::Committed {
+                                duplicate_spans: 0,
+                                conflicting_spans: 0,
+                            })
                         }
                     },
                     async move {

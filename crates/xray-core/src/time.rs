@@ -1,4 +1,4 @@
-use serde::{Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::{error::Error, fmt};
 
 /// Nanoseconds since the Unix epoch, within the signed SQLite integer range.
@@ -44,6 +44,15 @@ impl Serialize for UnixNanos {
     }
 }
 
+impl<'de> Deserialize<'de> for UnixNanos {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = String::deserialize(deserializer)?
+            .parse::<i64>()
+            .map_err(serde::de::Error::custom)?;
+        Self::try_from(value).map_err(serde::de::Error::custom)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TimestampOutOfRange;
 
@@ -56,10 +65,25 @@ impl fmt::Display for TimestampOutOfRange {
 impl Error for TimestampOutOfRange {}
 
 /// A validated span interval. Equal start and end times are valid.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Eq, PartialEq)]
+#[serde(try_from = "IntervalFields")]
 pub struct SpanInterval {
     start: UnixNanos,
     end: UnixNanos,
+}
+
+#[derive(Deserialize)]
+struct IntervalFields {
+    start: UnixNanos,
+    end: UnixNanos,
+}
+
+impl TryFrom<IntervalFields> for SpanInterval {
+    type Error = EndBeforeStart;
+
+    fn try_from(fields: IntervalFields) -> Result<Self, Self::Error> {
+        Self::new(fields.start, fields.end)
+    }
 }
 
 impl SpanInterval {

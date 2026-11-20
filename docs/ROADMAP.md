@@ -1,6 +1,6 @@
 # Request X-Ray — Implementation Roadmap
 
-**Status:** Steps 1.1–1.7 and 2.1–2.9 verified. See the [collector verification](COLLECTOR.md#verification-results). Step 0 still has open gates. See the [foundation audit](STEP0_AUDIT.md) for verification results and blockers. **A checkbox means code + tests + documented proof**, not merely files created.
+**Status:** Steps 1.1–3.8 verified. See the [collector verification](COLLECTOR.md#verification-results) and [storage verification](STORAGE.md#verification). Step 0 still has open gates. See the [foundation audit](STEP0_AUDIT.md) for verification results and blockers. **A checkbox means code + tests + documented proof**, not merely files created.
 
 ## Operating instructions for contributors / Codex
 
@@ -83,14 +83,14 @@ Read `README.md`, `docs/ARCHITECTURE.md`, this file, and `docs/DOCUMENTATION.md`
 
 ## STEP 3 — SQLite repository and trace lifecycle [M1]
 
-- [ ] **3.1 SQLx migration:** `resources`, `traces`, `spans` with proper keys/indexes, events/links retained, referential integrity on.
-- [ ] **3.2 Writer:** Transactional batches with stable deduplication and conflict diagnostics; ACK after commit according to ADR.
-- [ ] **3.3 Read repository:** List traces, get trace, list ordered spans, filter by service/error/timestamps and cursor pagination.
-- [ ] **3.4 Late spans:** Update trace summaries when additional spans arrive; preserve incomplete/missing-parent flags.
-- [ ] **3.5 Retention:** Default configurable age/size limits, safe eviction and trace-level cascade behavior.
-- [ ] **3.6 Storage resilience:** SQLite WAL, busy timeout, concurrent readers, restart and migration tests, disk full and write failures.
-- [ ] **3.7 Duplicate semantics:** Identical span idempotency; conflicting content is counted and not silently overwritten.
-- [ ] **3.8 End-to-end fixture:** OTLP → collector → DB → row assertions, including error, links, events, redaction, late spans.
+- [x] **3.1 SQLx migration:** `resources`, `traces`, `spans` with proper keys/indexes, events/links retained, referential integrity on.
+- [x] **3.2 Writer:** Transactional batches with stable deduplication and conflict diagnostics; ACK after commit according to ADR.
+- [x] **3.3 Read repository:** List traces, get trace, list ordered spans, filter by service/error/timestamps and cursor pagination.
+- [x] **3.4 Late spans:** Update trace summaries when additional spans arrive; preserve incomplete/missing-parent flags.
+- [x] **3.5 Retention:** Default configurable age/size limits, safe eviction and trace-level cascade behavior.
+- [x] **3.6 Storage resilience:** SQLite WAL, busy timeout, concurrent readers, restart and migration tests, disk full and write failures.
+- [x] **3.7 Duplicate semantics:** Identical span idempotency; conflicting content is counted and not silently overwritten.
+- [x] **3.8 End-to-end fixture:** OTLP → collector → DB → row assertions, including error, links, events, redaction, late spans.
 
 **Verify:** inject known protobuf; stop/restart process; read persisted trace and exact span count/attributes; malformed payload never creates partial undisclosed rows.
 

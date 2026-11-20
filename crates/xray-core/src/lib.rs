@@ -1,5 +1,7 @@
 //! Canonical, transport-independent types for trace telemetry.
 
+use serde::{Deserialize, Serialize};
+
 mod id;
 mod time;
 
@@ -7,7 +9,7 @@ pub use id::{InvalidId, SpanId, TraceId};
 pub use time::{EndBeforeStart, SpanInterval, TimestampOutOfRange, UnixNanos};
 
 /// Span kind code. Unrecognized codes are preserved for forward compatibility.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SpanKind(i32);
 
 impl SpanKind {
@@ -28,7 +30,7 @@ impl SpanKind {
 }
 
 /// Span status code. Unrecognized codes are preserved for forward compatibility.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StatusCode(i32);
 
 impl StatusCode {
@@ -45,7 +47,7 @@ impl StatusCode {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct SpanStatus {
     pub code: StatusCode,
     pub message: String,
@@ -54,32 +56,32 @@ pub struct SpanStatus {
 /// Ordered attributes retain duplicate keys for ingestion-time validation.
 pub type Attributes = Vec<Attribute>;
 
-#[derive(Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct Attribute {
     pub key: String,
     pub value: Option<AttributeValue>,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub enum AttributeValue {
     Empty,
     String(String),
     Bool(bool),
     Int(i64),
-    Double(f64),
+    Double(#[serde(with = "float_bits")] f64),
     Bytes(Vec<u8>),
     Array(Vec<Self>),
     KeyValueList(Attributes),
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct Resource {
     pub attributes: Attributes,
     pub dropped_attributes_count: u32,
     pub entity_refs: Vec<EntityRef>,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct EntityRef {
     pub schema_url: String,
     pub entity_type: String,
@@ -87,7 +89,7 @@ pub struct EntityRef {
     pub description_keys: Vec<String>,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct Scope {
     pub name: String,
     pub version: String,
@@ -95,7 +97,7 @@ pub struct Scope {
     pub dropped_attributes_count: u32,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct Event {
     pub time_unix_nano: UnixNanos,
     pub name: String,
@@ -103,7 +105,7 @@ pub struct Event {
     pub dropped_attributes_count: u32,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct Link {
     pub trace_id: TraceId,
     pub span_id: SpanId,
@@ -113,7 +115,7 @@ pub struct Link {
     pub flags: u32,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct Span {
     pub trace_id: TraceId,
     pub span_id: SpanId,
@@ -132,14 +134,14 @@ pub struct Span {
     pub status: Option<SpanStatus>,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct ResourceSpans {
     pub resource: Option<Resource>,
     pub schema_url: String,
     pub scope_spans: Vec<ScopeSpans>,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct ScopeSpans {
     pub scope: Option<Scope>,
     pub schema_url: String,
@@ -158,5 +160,18 @@ mod tests {
         }
         assert_eq!(SpanKind::CLIENT.code(), 3);
         assert_eq!(StatusCode::ERROR.code(), 2);
+    }
+}
+
+// Preserve every floating-point bit pattern, including NaN and signed zero.
+mod float_bits {
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S: Serializer>(value: &f64, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_u64(value.to_bits())
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<f64, D::Error> {
+        u64::deserialize(deserializer).map(f64::from_bits)
     }
 }

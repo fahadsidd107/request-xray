@@ -1,6 +1,6 @@
 # Request X-Ray
 
-> **Project status: specification / pre-implementation.** This repository describes a proposed open-source product. Commands, package names, screenshots, API shapes, and version milestones below are **design targets**, not evidence of a published or working release.
+> **Project status: unreleased.** The loopback OTLP collector and SQLite trace repository are runnable from source. The npm, query API and dashboard sections describe planned interfaces.
 
 **Request X-Ray** is a Rust-powered, local-first request investigation platform distributed through **npm**. It turns OpenTelemetry traces into a usable debugging experience: request waterfalls, service relationships, failure propagation, query-pattern analysis, trace comparisons, and evidence-backed explanations.
 
@@ -168,7 +168,7 @@ request-xray/
 
 ## Current status
 
-**Specification only.** No npm package, collector, dashboard, or tests are claimed to exist yet. Start with [ROADMAP.md](docs/ROADMAP.md) Step 0, and do not check off a task without proof from executable tests or generated artifacts.
+Run the native collector with `cargo run --locked -p xray-collector` and send local OpenTelemetry spans to `http://127.0.0.1:4318/v1/traces`. The collector writes accepted spans to SQLite. See the [collector guide](docs/COLLECTOR.md), [storage guide](docs/STORAGE.md), and [roadmap](docs/ROADMAP.md).
 
 ## Authoritative specifications
 
