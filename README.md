@@ -1,6 +1,6 @@
 # Request X-Ray
 
-> **Project status: unreleased.** The loopback OTLP collector and SQLite trace repository are runnable from source. The npm, query API and dashboard sections describe planned interfaces.
+> **Project status: unreleased.** The loopback OTLP collector, SQLite trace repository, read-only query API and Node SDK are runnable from source. npm publication, the CLI and dashboard remain planned.
 
 **Request X-Ray** is a Rust-powered, local-first request investigation platform distributed through **npm**. It turns OpenTelemetry traces into a usable debugging experience: request waterfalls, service relationships, failure propagation, query-pattern analysis, trace comparisons, and evidence-backed explanations.
 
@@ -68,6 +68,8 @@ Legend: **P0** first useful release; **P1** next; **P2** advanced; **R** researc
 | Trace-derived tests, safe local replay, fault injection | R | Never replay side effects against production |
 | Authenticated remote/team mode, advanced storage | R | Separate threat model and deployment mode |
 | Browser trace UI + end-user navigation | R | Browser OTel instrumentation has distinct maturity constraints |
+
+For a runnable app integration, see the [Node SDK guide](docs/NODE_SDK.md).
 
 For the complete specifications see [ARCHITECTURE.md](docs/ARCHITECTURE.md), [ROADMAP.md](docs/ROADMAP.md), and [DOCUMENTATION.md](docs/DOCUMENTATION.md).
 
@@ -168,7 +170,7 @@ request-xray/
 
 ## Current status
 
-Run the native collector with `cargo run --locked -p xray-collector` and send local OpenTelemetry spans to `http://127.0.0.1:4318/v1/traces`. The collector writes accepted spans to SQLite. See the [collector guide](docs/COLLECTOR.md), [storage guide](docs/STORAGE.md), and [roadmap](docs/ROADMAP.md).
+Run the native collector with `cargo run --locked -p xray-collector` and send local OpenTelemetry spans to `http://127.0.0.1:4318/v1/traces`. The collector writes accepted spans to SQLite. Query the committed traces on the separate listener at `http://127.0.0.1:4731/api/v1`. See the [collector guide](docs/COLLECTOR.md), [storage guide](docs/STORAGE.md), [query API guide](docs/QUERY_API.md), and [roadmap](docs/ROADMAP.md).
 
 ## Authoritative specifications
 

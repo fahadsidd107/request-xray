@@ -4,7 +4,7 @@
   "private": true,
   "description": "Local NestJS multi-service integration lab for Request X-Ray",
   "engines": {
-    "node": ">=20"
+    "node": "^22.0.0 || ^24.0.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -25,10 +25,10 @@
     "@nestjs/platform-express": "^10.4.0",
     "@opentelemetry/api": "1.10.0",
     "@opentelemetry/auto-instrumentations-node": "^0.82.0",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.300.0",
     "@opentelemetry/sdk-node": "^0.300.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "@request-xray/node": "workspace:*"
   },
   "devDependencies": {
     "@opentelemetry/exporter-trace-otlp-proto": "0.300.0",

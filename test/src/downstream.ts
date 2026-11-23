@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { Controller, Get, Param, Query, Module, Post, Body, HttpException } from '@nestjs/common';
+import { Controller, Get, Param, Query, Module, Post, Body, HttpException, HttpCode } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { sleep, span } from './shared';
 @Controller('internal')
@@ -7,7 +7,7 @@ class DownstreamController {
   @Get('inventory/:id') async inventory(@Param('id') id:string,@Query('delay') delay='25') {
     return span('inventory.lookup.mock', async()=>{await sleep(Math.min(Number(delay)||0,2000));return {sku:id,available:true};},{'lab.mock':true});
   }
-  @Post('payment') async payment(@Body() payload: { amount:number;mode?:string }) {
+  @Post('payment') @HttpCode(200) async payment(@Body() payload: { amount:number;mode?:string }) {
     const mode=payload.mode||'success';
     return span('payment.gateway.mock',async()=>{
       if(mode==='slow')await sleep(650);

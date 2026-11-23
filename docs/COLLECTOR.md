@@ -1,6 +1,6 @@
 # OTLP/HTTP collector
 
-The `xray-collector` crate exposes `POST /v1/traces` on `127.0.0.1:4318` by default. The native binary accepts loopback IPv4 or IPv6 addresses. The query listener and its health endpoint are roadmap work.
+The `xray-collector` crate exposes `POST /v1/traces` on `127.0.0.1:4318` by default. The native binary accepts loopback IPv4 or IPv6 addresses. The binary also starts the [query API](QUERY_API.md) on a separate loopback listener with SQLite enabled.
 
 ## Run and verify
 

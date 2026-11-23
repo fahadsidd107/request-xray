@@ -1,0 +1,8 @@
+{
+  "name": "request-xray-express-example",
+  "private": true,
+  "dependencies": {
+    "@request-xray/node": "workspace:*",
+    "express": "4.22.1"
+  }
+}

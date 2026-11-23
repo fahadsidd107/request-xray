@@ -1,4 +1,11 @@
-use std::{env, error::Error, io, path::PathBuf, time::Duration};
+use std::{
+    env,
+    error::Error,
+    io,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use xray_storage::{Repository, Retention};
 
@@ -63,6 +70,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     } else {
         Some(open_storage().await?)
     };
+    let query = if let Some((repository, _, _)) = &storage {
+        let address = env_value("REQUEST_XRAY_QUERY_LISTEN")?
+            .map_or(Ok(xray_api::DEFAULT_LISTEN), |value| value.parse())?;
+        Some((xray_api::bind(address).await?, repository.clone()))
+    } else {
+        None
+    };
     let mode = if validate_only {
         "validation only"
     } else {
@@ -73,60 +87,110 @@ async fn main() -> Result<(), Box<dyn Error>> {
         listener.local_addr()?
     );
 
-    let maintenance = storage.as_ref().map(|(repository, retention)| {
-        let repository = repository.clone();
-        let retention = *retention;
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(60));
-            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-            interval.tick().await;
-            loop {
-                interval.tick().await;
-                match repository.enforce_retention(retention).await {
-                    Ok(report)
-                        if report.deleted_traces != 0
-                            || report.live_bytes > retention.max_bytes =>
-                    {
-                        eprintln!(
-                            "SQLite retention removed {} traces, {} live bytes",
-                            report.deleted_traces, report.live_bytes
-                        );
-                    }
-                    Ok(_) => {}
-                    Err(_) => eprintln!("SQLite retention failed"),
-                }
-            }
-        })
+    if let Some((listener, _)) = &query {
+        eprintln!("Query API at http://{}/api/v1", listener.local_addr()?);
+    }
+
+    let retention_stats = storage.as_ref().map(|(_, _, initial)| {
+        Arc::new(Mutex::new(xray_api::RetentionStats {
+            deleted_traces: initial.deleted_traces,
+            live_bytes_at_last_pass: initial.live_bytes,
+            failures: 0,
+        }))
     });
-    let ingestion = Ingestion::new(config);
-    let repository = storage.as_ref().map(|(repository, _)| repository.clone());
-    let result = ingestion
-        .serve(
-            listener,
-            move |batch| {
-                let repository = repository.clone();
-                async move {
-                    let Some(repository) = repository else {
-                        return Ok(SinkOutcome::ValidationOnly);
-                    };
-                    let report = repository
-                        .write_batch(batch)
-                        .await
-                        .map_err(|_| StorageUnavailable)?;
-                    Ok(SinkOutcome::Committed {
-                        duplicate_spans: report.duplicate_spans,
-                        conflicting_spans: report.conflicting_spans,
-                    })
+    let maintenance = storage.as_ref().zip(retention_stats.as_ref()).map(
+        |((repository, retention, _), stats)| {
+            let stats = stats.clone();
+            let repository = repository.clone();
+            let retention = *retention;
+            tokio::spawn(async move {
+                let mut interval = tokio::time::interval(Duration::from_secs(60));
+                interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+                interval.tick().await;
+                loop {
+                    interval.tick().await;
+                    match repository.enforce_retention(retention).await {
+                        Ok(report) => {
+                            let mut stats = stats.lock().expect("retention diagnostics lock");
+                            stats.deleted_traces += report.deleted_traces;
+                            stats.live_bytes_at_last_pass = report.live_bytes;
+                            if report.deleted_traces != 0 || report.live_bytes > retention.max_bytes
+                            {
+                                eprintln!(
+                                    "SQLite retention removed {} traces, {} live bytes",
+                                    report.deleted_traces, report.live_bytes
+                                );
+                            }
+                        }
+                        Err(_) => {
+                            stats.lock().expect("retention diagnostics lock").failures += 1;
+                            eprintln!("SQLite retention failed");
+                        }
+                    }
                 }
-            },
-            shutdown,
-        )
-        .await;
+            })
+        },
+    );
+    let ingestion = Ingestion::new(config);
+    let repository = storage
+        .as_ref()
+        .map(|(repository, _, _)| repository.clone());
+    let (stop, stopped) = tokio::sync::watch::channel(false);
+    let signal_task = tokio::spawn(async move {
+        shutdown.await;
+        let _ = stop.send(true);
+    });
+    let ingest = ingestion.serve(
+        listener,
+        move |batch| {
+            let repository = repository.clone();
+            async move {
+                let Some(repository) = repository else {
+                    return Ok(SinkOutcome::ValidationOnly);
+                };
+                let report = repository
+                    .write_batch(batch)
+                    .await
+                    .map_err(|_| StorageUnavailable)?;
+                Ok(SinkOutcome::Committed {
+                    duplicate_spans: report.duplicate_spans,
+                    conflicting_spans: report.conflicting_spans,
+                })
+            }
+        },
+        wait_for_shutdown(stopped.clone()),
+    );
+    let diagnostic_source = retention_stats.map(|retention| {
+        let ingestion = ingestion.clone();
+        let source: xray_api::DiagnosticsSource = Arc::new(move || xray_api::RuntimeStats {
+            ingestion: ingestion_stats(ingestion.diagnostics()),
+            retention: retention
+                .lock()
+                .expect("retention diagnostics lock")
+                .clone(),
+        });
+        source
+    });
+    let query = async {
+        if let Some((listener, repository)) = query {
+            xray_api::serve(
+                listener,
+                repository,
+                diagnostic_source,
+                wait_for_shutdown(stopped),
+            )
+            .await?;
+        }
+        Ok(())
+    };
+    let result = tokio::try_join!(ingest, query);
+    signal_task.abort();
+    let _ = signal_task.await;
     if let Some(task) = maintenance {
         task.abort();
         let _ = task.await;
     }
-    if let Some((repository, _)) = storage {
+    if let Some((repository, _, _)) = storage {
         repository.close().await;
     }
     result?;
@@ -138,7 +202,28 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn open_storage() -> Result<(Repository, Retention), Box<dyn Error>> {
+fn ingestion_stats(stats: Diagnostics) -> xray_api::IngestionStats {
+    xray_api::IngestionStats {
+        source_endpoint: Diagnostics::SOURCE_ENDPOINT,
+        accepted_spans: stats.accepted_spans,
+        rejected_spans: stats.rejected_spans,
+        duplicate_spans: stats.duplicate_spans,
+        conflicting_spans: stats.conflicting_spans,
+        redacted_spans: stats.redacted_spans,
+        redacted_fields: stats.redacted_fields,
+        validation_only_spans: stats.validation_only_spans,
+        size_errors: stats.size_errors,
+        invalid_payloads: stats.invalid_payloads,
+        admission_rejections: stats.admission_rejections,
+        shutdown_rejections: stats.shutdown_rejections,
+        body_timeouts: stats.body_timeouts,
+        write_failures: stats.write_failures,
+        write_timeouts: stats.write_timeouts,
+    }
+}
+
+async fn open_storage(
+) -> Result<(Repository, Retention, xray_storage::RetentionReport), Box<dyn Error>> {
     let path = env::var_os("REQUEST_XRAY_DB_PATH")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(".request-xray/traces.sqlite"));
@@ -156,11 +241,15 @@ async fn open_storage() -> Result<(Repository, Retention), Box<dyn Error>> {
         retention.max_bytes = bytes.parse()?;
     }
     let repository = Repository::open(path).await.map_err(io::Error::other)?;
-    repository
+    let initial = repository
         .enforce_retention(retention)
         .await
         .map_err(io::Error::other)?;
-    Ok((repository, retention))
+    Ok((repository, retention, initial))
+}
+
+async fn wait_for_shutdown(mut stopped: tokio::sync::watch::Receiver<bool>) {
+    let _ = stopped.wait_for(|stop| *stop).await;
 }
 
 fn shutdown_signal() -> io::Result<impl std::future::Future<Output = ()>> {

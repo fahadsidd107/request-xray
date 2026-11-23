@@ -2,10 +2,10 @@
 
 Use this as the gate for Request X-Ray milestones. A green HTTP response does **not** establish that a trace exists. Verify trace IDs, parent/child relationships, service names, recorded status, and latency in the collector/query API or exported OTLP payload.
 
-| Area | Run | Required evidence | Layer | Status before SDK/collector |
+| Area | Run | Required evidence | Layer | Status |
 |---|---|---|---|---|
 | Basic HTTP | `scenario:all` fast | Server span and route attributes | Auto HTTP | Unverified |
-| Cross-service | checkout | Same trace ID across two processes | Propagation | Unverified |
+| Cross-service | SDK integration test | Express W3C parent IDs agree across processes. NestJS checkout persists one trace spanning both services. | Propagation | Verified |
 | Concurrent fanout | parallel | Three downstream client/server pairs overlap | Trace correlation | Unverified |
 | Sequential calls | sequential | Calls ordered in time | Waterfall | Unverified |
 | Slow operation | slow | Named span ≈400ms | Custom spans | Unverified |
@@ -16,10 +16,10 @@ Use this as the gate for Request X-Ray milestones. A green HTTP response does **
 | Simulated Redis | cache | Mock cache miss and DB fallthrough | Pattern UI only | Unverified |
 | Simulated queue | queue | Mock publish/consume spans | Span UI only | Unverified |
 | CPU | cpu | HTTP response; optionally event-loop metric | Profiling | Unverified |
-| Privacy | privacy | No request/response body captured by default | Security | Unverified |
-| Service query | checkout | Search filter shows both services | Storage/query | Unverified |
+| Privacy | SDK integration test | Synthetic header, body and query values are absent from emitted protobuf. | Security | Verified |
+| Service query | SDK integration test | Filtered checkout trace reports two services after SDK flush. | Storage/query | Verified |
 | Trace comparison | fast then slow | Detect increased latency | Analysis | Not implemented |
-| Collector outage | stop Rust collector | App still serves requests | Failure isolation | Unverified |
+| Collector outage | SDK integration test | Express still serves requests after the collector stops. | Failure isolation | Verified |
 | Native binary | `start:xray` | Runtime loads actual compiled package | Packaging | Not implemented |
 | Real PostgreSQL | Future fixture | DB client auto-spans and real query | Driver integration | Not in this lab |
 | Real Redis | Future fixture | Real cache client spans | Driver integration | Not in this lab |

@@ -4,7 +4,10 @@ mod read;
 mod retention;
 mod write;
 
-pub use read::{StoredSpan, TraceCursor, TraceFilter, TracePage, TraceSummary};
+pub use read::{
+    ServiceSummary, StorageStats, StoredSpan, TraceCursor, TraceFilter, TracePage, TraceStatus,
+    TraceSummary,
+};
 pub use retention::{Retention, RetentionReport};
 pub use write::WriteReport;
 
@@ -31,6 +34,7 @@ pub enum StorageError {
     Payload(serde_json::Error),
     InvalidId(xray_core::InvalidId),
     InvalidPageSize,
+    PageTooLarge,
 }
 
 impl fmt::Display for StorageError {
@@ -42,6 +46,7 @@ impl fmt::Display for StorageError {
             Self::Payload(_) => "stored telemetry payload could not be processed",
             Self::InvalidId(_) => "invalid stored trace identifier",
             Self::InvalidPageSize => "page size must be between 1 and 100",
+            Self::PageTooLarge => "span exceeds read page byte limit",
         })
     }
 }
@@ -54,7 +59,7 @@ impl Error for StorageError {
             Self::Migration(error) => Some(error),
             Self::Payload(error) => Some(error),
             Self::InvalidId(error) => Some(error),
-            Self::InvalidPageSize => None,
+            Self::InvalidPageSize | Self::PageTooLarge => None,
         }
     }
 }

@@ -1,6 +1,6 @@
 # Request X-Ray — Implementation Roadmap
 
-**Status:** Steps 1.1–3.8 verified. See the [collector verification](COLLECTOR.md#verification-results) and [storage verification](STORAGE.md#verification). Step 0 still has open gates. See the [foundation audit](STEP0_AUDIT.md) for verification results and blockers. **A checkbox means code + tests + documented proof**, not merely files created.
+**Status:** Steps 1.1–5.9 verified. See the [Node SDK verification](NODE_SDK.md#verification). See the [query API verification](QUERY_API.md#contract-and-client). See the [collector verification](COLLECTOR.md#verification-results) and [storage verification](STORAGE.md#verification). Step 0 still has open gates. See the [foundation audit](STEP0_AUDIT.md) for verification results and blockers. **A checkbox means code + tests + documented proof**, not merely files created.
 
 ## Operating instructions for contributors / Codex
 
@@ -100,14 +100,14 @@ Read `README.md`, `docs/ARCHITECTURE.md`, this file, and `docs/DOCUMENTATION.md`
 
 ## STEP 4 — Query API and OpenAPI [M2]
 
-- [ ] **4.1 `xray-api`:** `GET /api/v1/health`, `/traces`, `/traces/{id}`, `/traces/{id}/spans`, `/services`, `/stats`, `/config/capabilities`.
-- [ ] **4.2 Cursor pagination:** Stable deterministic ordering with indexes and hard max page size. Test concurrent insert behavior.
-- [ ] **4.3 Search filters:** Trace ID, service, status/error, duration and time range, route when known; parameterized SQL.
-- [ ] **4.4 JSON precision:** Nanosecond values as strings, error envelope, explicit nulls and availability flags.
-- [ ] **4.5 OpenAPI 3.1:** Export schema; generate TS API client; schema/contract snapshots tested in CI.
-- [ ] **4.6 Security:** Local bind, Host/Origin validation, no permissive CORS, secure HTTP headers, no unbounded result paths.
-- [ ] **4.7 Incomplete trace model:** API exposes missing parent count, last seen time and observational completeness status.
-- [ ] **4.8 Integration:** API reads only persisted real spans and never invents measurements or silently truncates sets.
+- [x] **4.1 `xray-api`:** `GET /api/v1/health`, `/traces`, `/traces/{id}`, `/traces/{id}/spans`, `/services`, `/stats`, `/config/capabilities`.
+- [x] **4.2 Cursor pagination:** Stable deterministic ordering with indexes and hard max page size. Test concurrent insert behavior.
+- [x] **4.3 Search filters:** Trace ID, service, status/error, duration and time range, route when known; parameterized SQL.
+- [x] **4.4 JSON precision:** Nanosecond values as strings, error envelope, explicit nulls and availability flags.
+- [x] **4.5 OpenAPI 3.1:** Export schema; generate TS API client; schema/contract snapshots tested in CI.
+- [x] **4.6 Security:** Local bind, Host/Origin validation, no permissive CORS, secure HTTP headers, no unbounded result paths.
+- [x] **4.7 Incomplete trace model:** API exposes missing parent count, last seen time and observational completeness status.
+- [x] **4.8 Integration:** API reads only persisted real spans and never invents measurements or silently truncates sets.
 
 **Verify:** integration tests for every route, filter, invalid ID, pagination, precision, SQL injection attempts, large spans, and missing traces.
 
@@ -117,17 +117,17 @@ Read `README.md`, `docs/ARCHITECTURE.md`, this file, and `docs/DOCUMENTATION.md`
 
 ## STEP 5 — TypeScript Node instrumentation SDK [M2]
 
-- [ ] **5.1 SDK package:** `@request-xray/node`, strict TypeScript config, documented `startXRay` API, graceful shutdown.
-- [ ] **5.2 OTel setup:** NodeSDK, batch exporter to OTLP/HTTP protobuf, service resource attributes, supported auto instrumentations.
-- [ ] **5.3 Initialization:** CJS preload and ESM guidance; verify instrumentation runs before app imports. Avoid no-op SDK initialized too late.
-- [ ] **5.4 HTTP spans:** Express example for inbound and fetch/HTTP outbound; route names and safe status metadata.
-- [ ] **5.5 Context:** Trace propagation across two instrumented Node apps; W3C standard header behavior.
-- [ ] **5.6 Safety:** Hide raw bodies/headers/URL query params by default; bounded exporter queue; no app-breaking collector failures.
-- [ ] **5.7 Manual API:** `withSpan(name, fn)`, `addEvent(name, safeAttributes)`, optional active span; async context preserved.
-- [ ] **5.8 Existing SDK coexistence:** Detect/configure provider conflicts and document integration with an existing OTel SDK.
-- [ ] **5.9 Compatibility tests:** Node supported LTS versions, ESM/CJS, Express, Fastify or NestJS smoke fixture; flush/shutdown.
+- [x] **5.1 SDK package:** `@request-xray/node`, strict TypeScript config, documented `startXRay` API, graceful shutdown.
+- [x] **5.2 OTel setup:** NodeSDK, batch exporter to OTLP/HTTP protobuf, service resource attributes, supported auto instrumentations.
+- [x] **5.3 Initialization:** CJS preload and ESM guidance; verify instrumentation runs before app imports. Avoid no-op SDK initialized too late.
+- [x] **5.4 HTTP spans:** Express example for inbound and fetch/HTTP outbound; route names and safe status metadata.
+- [x] **5.5 Context:** Trace propagation across two instrumented Node apps; W3C standard header behavior.
+- [x] **5.6 Safety:** Hide raw bodies/headers/URL query params by default; bounded exporter queue; no app-breaking collector failures.
+- [x] **5.7 Manual API:** `withSpan(name, fn)`, `addEvent(name, safeAttributes)`, optional active span; async context preserved.
+- [x] **5.8 Existing SDK coexistence:** Detect/configure provider conflicts and document integration with an existing OTel SDK.
+- [x] **5.9 Compatibility tests:** Node supported LTS versions, ESM/CJS, Express, Fastify or NestJS smoke fixture; flush/shutdown.
 
-**Verify:** run sample `node --import ./instrumentation.mjs ./app.mjs`, issue HTTP request, see parent-child spans in SQLite. The real startup syntax depends on supported versions.
+**Verify:** follow the [Express example](NODE_SDK.md#preload-before-importing-the-application) or run `corepack pnpm --filter @request-xray/node test:e2e` after building the SDK, lab and native collector. Expect parent-child spans persisted across Express and NestJS services.
 
 **Exit criterion:** JS apps can send traces with no custom vendor protocol.
 

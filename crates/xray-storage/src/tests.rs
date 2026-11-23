@@ -325,3 +325,63 @@ async fn sqlite_full_preserves_previously_committed_rows() {
         1
     );
 }
+
+#[tokio::test]
+async fn migrates_existing_route_and_status_from_v1_payloads() {
+    use std::borrow::Cow;
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("v1.sqlite");
+    let pool = SqlitePoolOptions::new()
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(&path)
+                .create_if_missing(true),
+        )
+        .await
+        .unwrap();
+    Migrator {
+        migrations: Cow::Borrowed(&MIGRATIONS.migrations[..1]),
+        ..Migrator::DEFAULT
+    }
+    .run(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO resources(id,schema_url,payload,service_name) VALUES(1,'','null',NULL)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let mut old_span = span(1, 1, 12);
+    old_span.status = Some(SpanStatus {
+        code: StatusCode::OK,
+        message: String::new(),
+    });
+    old_span.attributes.push(Attribute {
+        key: "http.route".into(),
+        value: Some(AttributeValue::String("/old".into())),
+    });
+    sqlx::query("INSERT INTO traces(trace_id,start_ns,end_ns,first_seen_ns,last_seen_ns,span_count) VALUES(?,12,13,12,12,1)")
+        .bind(trace(1).as_bytes().as_slice()).execute(&pool).await.unwrap();
+    sqlx::query("INSERT INTO spans(trace_id,span_id,resource_id,start_ns,end_ns,has_error,scope_schema_url,scope_payload,payload) VALUES(?,?,1,12,13,0,'','null',?)")
+        .bind(trace(1).as_bytes().as_slice()).bind(span_id(1).as_bytes().as_slice())
+        .bind(serde_json::to_string(&old_span).unwrap()).execute(&pool).await.unwrap();
+    pool.close().await;
+
+    let repo = Repository::open(&path).await.unwrap();
+    let page = repo
+        .list_traces(
+            TraceFilter {
+                route: Some("/old"),
+                status: Some(TraceStatus::Ok),
+                ..Default::default()
+            },
+            10,
+        )
+        .await
+        .unwrap();
+    assert_eq!(page.traces.len(), 1);
+    assert_eq!(page.traces[0].trace_id, trace(1));
+    assert_eq!(page.traces[0].status, TraceStatus::Ok);
+}

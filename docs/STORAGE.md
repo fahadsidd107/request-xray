@@ -1,6 +1,6 @@
 # SQLite trace storage
 
-The native collector opens `.request-xray/traces.sqlite` by default. Start it with `cargo run --locked -p xray-collector`. The collector applies embedded SQLx migrations at startup, then listens for OTLP/HTTP. New database files are created with owner-only permissions on Unix. The query HTTP API is planned for Step 4. [Collector guide](COLLECTOR.md)
+The native collector opens `.request-xray/traces.sqlite` by default. Start it with `cargo run --locked -p xray-collector`. The collector applies embedded SQLx migrations at startup, then listens for OTLP/HTTP. New database files are created with owner-only permissions on Unix. The separate query listener reads the committed repository. [Query API](QUERY_API.md)
 
 | Environment variable | Default | Meaning |
 | --- | --- | --- |

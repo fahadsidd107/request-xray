@@ -1,6 +1,6 @@
 # Request X-Ray — System Architecture
 
-**Status:** Proposed architecture, v0 design. **Audience:** maintainers, Rust/TypeScript contributors, AI coding agents, reviewers. **Rule:** This document is normative for implementation unless superseded by a reviewed ADR (Architecture Decision Record). The canonical domain types, OTLP decoder, loopback collector and SQLite repository are implemented. See the [collector guide](COLLECTOR.md) for the current receiver behavior.
+**Status:** Proposed architecture, v0 design. **Audience:** maintainers, Rust/TypeScript contributors, AI coding agents, reviewers. **Rule:** This document is normative for implementation unless superseded by a reviewed ADR (Architecture Decision Record). The canonical domain types, OTLP decoder, loopback collector, SQLite repository and local query API are implemented. See the [collector guide](COLLECTOR.md) for the current receiver behavior.
 
 ## 1. Goals, non-goals, constraints
 
@@ -234,7 +234,7 @@ This is an *illustrative migration*, not a final copied schema. Additional migra
 - Trace ID / span ID duplicates: identical duplicates are idempotent; conflicting duplicates generate a conflict diagnostic and follow deterministic policy, not last-write-wins silently.
 - Later: optional ClickHouse or external OTLP backend adapter **only if** workloads demand it.
 
-## 7. Query API contract (draft)
+## 7. Query API contract
 
 All routes under `http://127.0.0.1:4731/api/v1`, loopback only in v0.1.
 
@@ -250,21 +250,7 @@ All routes under `http://127.0.0.1:4731/api/v1`, loopback only in v0.1.
 
 Future routes include `/analysis/{traceId}`, `/compare`, `/export`, `/rules`, `/service-graph`, and `/ai/explain` when implemented. No state-changing API beyond explicit administrative actions should exist in v0.1. Expose OpenAPI 3.1 description; generate TypeScript types from it and validate schema compatibility in CI.
 
-### Example response (illustrative)
-
-```json
-{
-  "traceId": "4f3f89a932441e6db08e2e4c002b7717",
-  "startedAtUnixNs": "1793500000000000000",
-  "durationNs": "5420000000",
-  "spanCount": 8,
-  "services": ["api-gateway", "orders", "payments"],
-  "hasError": true,
-  "completeness": {"state": "observed", "missingParentCount": 1}
-}
-```
-
-**Precision rule:** serialize nanoseconds as decimal strings in JSON, not JS numbers, to avoid IEEE-754 loss of precision. Encode time on the UI as relative offsets carefully; keep raw values available.
+The [query API guide](QUERY_API.md) and [OpenAPI schema](../schemas/collector.openapi.yaml) define the current response contract. Nanosecond values are decimal strings so JavaScript clients can preserve their precision.
 
 ### HTTP/API security
 

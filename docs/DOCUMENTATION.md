@@ -203,72 +203,9 @@ For initial versions, hidden or return an explicit "not supported in this releas
 
 Avoid changing documented codes without a major release or explicit compatibility policy.
 
-## 7. Node SDK API (proposed)
+## 7. Node SDK API
 
-The instrumentation SDK should be intentionally small. Reuse OpenTelemetry context, tracer APIs and automatic instrumentation wherever possible.
-
-### Bootstrap example — Express
-
-```ts
-// instrumentation.ts - illustrative TypeScript contract
-import { startXRay } from '@request-xray/node';
-
-await startXRay({
-  serviceName: 'shopflow-api',
-  serviceVersion: '0.1.0',
-  environment: 'development',
-  collectorEndpoint: 'http://127.0.0.1:4318/v1/traces',
-  capture: {
-    http: true,
-    express: true,
-    database: false,
-    redis: false
-  },
-  sampling: { mode: 'parentbased_traceidratio', probability: 1.0 }
-});
-```
-
-```ts
-// app.ts - illustrative app
-import express from 'express';
-const app = express();
-app.get('/orders/:id', (_req, res) => res.json({ status: 'ok' }));
-app.listen(3000);
-```
-
-**Start instrumentation first.** Example conceptual ESM launch (version-specific):
-
-```bash
-node --import ./dist/instrumentation.mjs ./dist/app.mjs
-curl http://127.0.0.1:3000/orders/123
-```
-
-OTel JS ESM loaders/hooks have changed across versions. The `--import` preload approach **alone may not cover every ESM module**; the implementation must ship working examples with any required loader hook and pin compatible OTel versions. Don't claim complete instrumentation without smoke testing the target runtime.
-
-### Manual custom spans and events
-
-```ts
-// Proposed API, not a working package
-import { withSpan, addEvent } from '@request-xray/node';
-
-const offers = await withSpan('match-student-offers', async () => {
-  addEvent('matching.phase_started', { algorithm: 'v2' });
-  return calculateOffers();
-});
-```
-
-Only send sanitized business metadata. Avoid user email, student ID, free text, token values, entire payloads, or private personal attributes by default. Events attach to active spans where context exists. The SDK should expose a no-op or controlled warning when no active span exists, never throw on a customer-facing hot path.
-
-### Shutdown
-
-Install graceful flush within a bounded timeout on process termination. Do not block indefinitely waiting for an unavailable collector. Explicit shutdown function should be idempotent. Serverless runtimes need separate compatibility guidelines.
-
-### Framework support policy
-
-- Node built-in `http` + Express: MVP target.
-- Fastify, NestJS, Next.js server: tested integration examples after MVP; avoid claiming all internals are captured.
-- Browser React events: not part of Node SDK; requires browser-specific consent/privacy model.
-- Spring Boot/Java, Go, Python: use those languages' native OTel tooling, not `@request-xray/node`.
+The [Node SDK guide](NODE_SDK.md) documents the workspace SDK, CommonJS and ESM startup, privacy defaults, manual spans, and use with an existing OpenTelemetry provider.
 
 ## 8. User interface walkthrough (planned)
 
@@ -296,44 +233,9 @@ Rule cards link to exact supporting span IDs and describe limitations. Example: 
 
 Disabled by default; explains what sanitized evidence would be sent. Results distinguish observed facts from hypotheses and cite span IDs. Never auto-edit code, make remote writes, or send raw credentials.
 
-## 9. HTTP API reference (planned)
+## 9. HTTP API reference
 
-Base: `http://127.0.0.1:4731/api/v1`.
-
-```http
-GET /api/v1/health
-GET /api/v1/traces?limit=50&error=true
-GET /api/v1/traces/4f3f89a932441e6db08e2e4c002b7717
-GET /api/v1/traces/4f3f89a932441e6db08e2e4c002b7717/spans
-GET /api/v1/services
-GET /api/v1/stats
-GET /api/v1/config/capabilities
-```
-
-Examples should use an API-generated exact ID, not assume a sample ID exists.
-
-### Intended API error envelope
-
-```json
-{
-  "error": {
-    "code": "TRACE_NOT_FOUND",
-    "message": "No observed trace matches the provided trace ID.",
-    "requestId": "req-example"
-  }
-}
-```
-
-All API errors must be machine-readable and must not expose database queries, filesystem secrets or internal stack traces. All timestamp nanoseconds are decimal strings (not JS floats).
-
-### Trace query behavior
-
-- `limit`: default 50; hard cap established in Step 4.
-- `cursor`: opaque pagination token; do not expose SQL offsets as stable persistent contract.
-- `service`: normalized service name; exact match unless versioned search semantics specify otherwise.
-- `error`: trace contains recorded error status. A 4xx is not automatically a tracing error if OTel conventions say otherwise.
-- `durationMinMs`, `durationMaxMs`: finite nonnegative numbers with validation.
-- `since`, `until`: ISO timestamps or explicit documented format; timezone-aware.
+The read-only API listens at `http://127.0.0.1:4731/api/v1` by default. The [query API guide](QUERY_API.md) documents every route, cursor, filter, precision rule, error, and generated TypeScript client.
 
 ### OTLP ingestion endpoint
 

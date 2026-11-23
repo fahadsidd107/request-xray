@@ -1,0 +1,51 @@
+{
+  "name": "@request-xray/node",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": "^22.0.0 || ^24.0.0"
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./index.d.mts",
+        "default": "./index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "./register": {
+      "import": "./register.mjs",
+      "require": "./register.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "pnpm run build && node --test tests/unit.test.cjs",
+    "test:e2e": "node --test tests/integration.test.cjs"
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.9.0"
+  },
+  "dependencies": {
+    "@opentelemetry/core": "3.0.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "0.300.0",
+    "@opentelemetry/instrumentation": "0.300.0",
+    "@opentelemetry/instrumentation-express": "0.72.0",
+    "@opentelemetry/instrumentation-http": "0.300.0",
+    "@opentelemetry/instrumentation-undici": "0.34.0",
+    "@opentelemetry/resources": "3.0.0",
+    "@opentelemetry/sdk-node": "0.300.0",
+    "@opentelemetry/sdk-trace": "3.0.0"
+  },
+  "devDependencies": {
+    "@opentelemetry/api": "1.10.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.8.0"
+  },
+  "types": "./dist/index.d.ts"
+}

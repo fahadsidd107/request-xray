@@ -2,53 +2,22 @@
 
 A **private, disposable NestJS application** to place at `<request-xray-repo>/test/`. It is an integration fixture for a Rust-powered Request X-Ray collector, npm SDK, and dashboard. It contains two independently running NestJS HTTP servers, realistic test scenarios, named manual spans, an optional OpenTelemetry exporter, and Node's built-in smoke tests.
 
-> **Status:** This fixture is runnable after `npm install`, but Request X-Ray itself is **not** bundled. `XRAY_MODE=otel` can emit traces to any running OTLP/HTTP collector. `XRAY_MODE=xray` requires the project's real `@request-xray/node` implementation. The fixture cannot certify package features that do not exist yet.
+The lab runs within the pnpm workspace and uses synthetic data. Node 22 and 24 are supported in Request X-Ray mode.
 
-## Install in the repository
+## Start the lab
 
-Copy the directory in this ZIP as `request-xray/test/`, with the main repository's `packages/` and `crates/` directories as siblings. The fixture has no absolute paths and does not alter the parent project.
-
-```sh
-cd request-xray/test
-npm install
-npm run build
-npm start
-# in a separate terminal:
-npm run scenario:all
-# in another terminal, optional:
-npm run smoke
-```
-
-- Checkout service: `http://127.0.0.1:3900`
-- Downstream payment/inventory service: `http://127.0.0.1:3901`
-- `npm run verify` performs typechecking, compilation, and smoke tests.
-- Node.js 20+ is required. The lab uses synthetic payments and in-memory simulations, never real money or credentials.
-
-### Send traces to Rust collector
-
-Start Request X-Ray's **implemented** OTLP receiver in the parent repo before starting the fixture. The intended endpoint in the documentation is `http://127.0.0.1:4318/v1/traces`.
+From the repository root:
 
 ```sh
-cd request-xray/test
-npm run build
-npm run start:otel
-# separate shell:
-npm run scenario:all
+corepack pnpm install --frozen-lockfile
+corepack pnpm --filter @request-xray/node build
+corepack pnpm --filter request-xray-test-lab build
+cargo run --locked -p xray-collector
 ```
 
-Override the collector endpoint with `XRAY_COLLECTOR_URL=http://127.0.0.1:4318/v1/traces`. `otel` mode uses the standard OpenTelemetry JS SDK, independent of the future `@request-xray/node` package. A valid trace exported and visible in the Rust collector establishes **protocol compatibility**, not the package SDK's correctness.
+In a separate terminal run `corepack pnpm --filter request-xray-test-lab start:xray`, then `corepack pnpm --filter request-xray-test-lab scenario:all`. The checkout service listens on `127.0.0.1:3900` and downstream on `127.0.0.1:3901`. The SDK starts before NestJS imports, then sends spans to `127.0.0.1:4318/v1/traces`. Override the endpoint with `XRAY_COLLECTOR_URL`. Inspect committed traces through the [query API](../docs/QUERY_API.md).
 
-### Test the actual npm SDK
-
-After the real `@request-xray/node` package exists and is built, install/link it into this fixture, for example:
-
-```sh
-npm install --no-save ../packages/node
-npm run build
-npm run start:xray
-```
-
-The `xray` preload currently expects the *proposed* `startXRay(options)` export. It deliberately **fails loudly** if that SDK cannot be resolved or if its API is incompatible. Current adapter expects synchronous initialization so framework imports happen afterward; if the actual SDK has async initialization, revise the preload and startup mechanism rather than ignoring the Promise. Test both `start:otel` and `start:xray` independently.
+Use `start:otel` to test the official OpenTelemetry exporter separately, or `start` to run without tracing. `corepack pnpm --filter request-xray-test-lab verify` covers typechecking, build, and ordinary HTTP smoke tests. The [SDK integration test](../docs/NODE_SDK.md#verification) exercises NestJS with real persistence and trace assertions.
 
 ## Scenarios
 

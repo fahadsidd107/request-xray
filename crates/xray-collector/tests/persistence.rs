@@ -17,9 +17,10 @@ use xray_storage::Repository;
 
 const DISTRIBUTED: &[u8] = include_bytes!("../../../tests/fixtures/otlp/distributed.pb");
 
-async fn start(db: &Path) -> (Child, String) {
+async fn start(db: &Path) -> (Child, String, String) {
     let mut collector = Command::new(env!("CARGO_BIN_EXE_xray-collector"))
         .env("REQUEST_XRAY_OTLP_LISTEN", "127.0.0.1:0")
+        .env("REQUEST_XRAY_QUERY_LISTEN", "127.0.0.1:0")
         .env("REQUEST_XRAY_DB_PATH", db)
         .env("REQUEST_XRAY_RETENTION_AGE_SECONDS", "604800")
         .env("REQUEST_XRAY_RETENTION_MAX_BYTES", "524288000")
@@ -47,23 +48,61 @@ async fn start(db: &Path) -> (Child, String) {
         .next()
         .unwrap()
         .to_owned();
-    (collector, address)
+    line.clear();
+    tokio::time::timeout(Duration::from_secs(10), stderr.read_line(&mut line))
+        .await
+        .unwrap()
+        .unwrap();
+    let query = line
+        .strip_prefix("Query API at http://")
+        .unwrap_or_else(|| panic!("{line}"))
+        .split('/')
+        .next()
+        .unwrap()
+        .to_owned();
+    (collector, address, query)
 }
 
 async fn export(address: &str, payload: &[u8]) -> (u16, Vec<u8>) {
-    tokio::time::timeout(Duration::from_secs(5), async {
-        let mut stream = TcpStream::connect(address).await.unwrap();
-        stream.write_all(format!(
+    exchange(address, &format!(
             "POST /v1/traces HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/x-protobuf\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
             payload.len(),
-        ).as_bytes()).await.unwrap();
+        ), payload).await
+}
+
+async fn query(address: &str, path: &str) -> serde_json::Value {
+    let (status, body) = exchange(
+        address,
+        &format!("GET {path} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n"),
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200);
+    serde_json::from_slice(&body).unwrap()
+}
+
+async fn exchange(address: &str, request: &str, payload: &[u8]) -> (u16, Vec<u8>) {
+    tokio::time::timeout(Duration::from_secs(5), async {
+        let mut stream = TcpStream::connect(address).await.unwrap();
+        stream.write_all(request.as_bytes()).await.unwrap();
         stream.write_all(payload).await.unwrap();
         let mut response = Vec::new();
         stream.read_to_end(&mut response).await.unwrap();
-        let split = response.windows(4).position(|bytes| bytes == b"\r\n\r\n").unwrap();
-        let status = std::str::from_utf8(&response[..split]).unwrap().split_whitespace().nth(1).unwrap().parse().unwrap();
+        let split = response
+            .windows(4)
+            .position(|bytes| bytes == b"\r\n\r\n")
+            .unwrap();
+        let status = std::str::from_utf8(&response[..split])
+            .unwrap()
+            .split_whitespace()
+            .nth(1)
+            .unwrap()
+            .parse()
+            .unwrap();
         (status, response[split + 4..].to_vec())
-    }).await.unwrap()
+    })
+    .await
+    .unwrap()
 }
 
 fn attr(key: &str, text: &str) -> KeyValue {
@@ -97,17 +136,31 @@ async fn collector_commits_exporter_fixture_and_recovers_on_restart() {
     late.resource_spans[0].scope_spans[0].spans = vec![root];
     let original = first.encode_to_vec();
 
-    let (mut collector, address) = start(&db).await;
+    let (mut collector, address, query_address) = start(&db).await;
+    assert_eq!(query(&query_address, "/api/v1/stats").await["spanCount"], 0);
     let (status, response) = export(&address, &original).await;
     assert_eq!(status, 200);
     assert!(ExportTraceServiceResponse::decode(response.as_slice())
         .unwrap()
         .partial_success
         .is_none());
+    let stats = query(&query_address, "/api/v1/stats").await;
+    assert_eq!(stats["spanCount"], 2);
+    assert_eq!(stats["runtime"]["ingestion"]["acceptedSpans"], 2);
+    assert_eq!(
+        stats["runtime"]["ingestion"]["sourceEndpoint"],
+        "/v1/traces"
+    );
+    assert_eq!(stats["runtime"]["retention"]["failures"], 0);
     collector.kill().await.unwrap(); // Simulate process loss just after acknowledgment.
 
-    let (mut collector, address) = start(&db).await;
+    let (mut collector, address, query_address) = start(&db).await;
     let repo = Repository::open(&db).await.unwrap();
+    let path = format!("/api/v1/traces/{trace_id}");
+    assert_eq!(
+        query(&query_address, &path).await["completeness"]["missingParentCount"],
+        2
+    );
     let before = repo.get_trace(trace_id).await.unwrap().unwrap();
     assert_eq!(before.span_count, 2);
     assert_eq!(before.missing_parent_count, 2);
@@ -134,6 +187,14 @@ async fn collector_commits_exporter_fixture_and_recovers_on_restart() {
         400
     );
 
+    let api_spans = query(&query_address, &format!("{path}/spans")).await;
+    assert_eq!(api_spans["items"].as_array().unwrap().len(), 3);
+    assert!(api_spans["nextCursor"].is_null());
+    assert!(!api_spans.to_string().contains("fixture-secret"));
+    assert_eq!(
+        query(&query_address, &path).await["completeness"]["missingParentCount"],
+        0
+    );
     let after = repo.get_trace(trace_id).await.unwrap().unwrap();
     assert_eq!(after.span_count, 3);
     assert_eq!(after.missing_parent_count, 0);

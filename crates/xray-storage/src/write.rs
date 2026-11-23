@@ -72,15 +72,21 @@ impl Repository {
 
                     let start = span.interval.start().as_i64();
                     let end = span.interval.end().as_i64();
-                    let has_error = span
-                        .status
-                        .as_ref()
-                        .is_some_and(|status| status.code == StatusCode::ERROR);
+                    let status = span.status.as_ref().map(|status| status.code);
+                    let has_error = status == Some(StatusCode::ERROR);
+                    let route = span.attributes.iter().find_map(|attr| match &attr.value {
+                        Some(AttributeValue::String(route))
+                            if attr.key == "http.route" && !route.is_empty() =>
+                        {
+                            Some(route.as_str())
+                        }
+                        _ => None,
+                    });
                     sqlx::query("INSERT INTO traces(trace_id,start_ns,end_ns,first_seen_ns,last_seen_ns) VALUES(?,?,?,?,?) ON CONFLICT(trace_id) DO NOTHING")
                         .bind(trace).bind(start).bind(end).bind(now).bind(now).execute(&mut *transaction).await?;
-                    sqlx::query("INSERT INTO spans(trace_id,span_id,parent_span_id,resource_id,start_ns,end_ns,has_error,scope_schema_url,scope_payload,payload) VALUES(?,?,?,?,?,?,?,?,?,?)")
+                    sqlx::query("INSERT INTO spans(trace_id,span_id,parent_span_id,resource_id,start_ns,end_ns,has_error,scope_schema_url,scope_payload,payload,route,status_code) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
                         .bind(trace).bind(span_id).bind(span.parent_span_id.as_ref().map(|parent| parent.as_bytes().as_slice()))
-                        .bind(resource_id).bind(start).bind(end).bind(has_error).bind(&scope.schema_url).bind(&scope_payload).bind(payload)
+                        .bind(resource_id).bind(start).bind(end).bind(has_error).bind(&scope.schema_url).bind(&scope_payload).bind(payload).bind(route).bind(status.map(StatusCode::code))
                         .execute(&mut *transaction).await?;
                     touched.insert(span.trace_id);
                     report.inserted_spans += 1;

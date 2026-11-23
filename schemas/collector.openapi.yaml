@@ -1,26 +1,1555 @@
-openapi: 3.1.0
-info:
-  title: Request X-Ray Query API
-  version: 0.1.0
-  description: Planned local query API; NOT the official OTLP ingestion schema.
-servers:
-  - url: http://127.0.0.1:4319
-    description: Proposed localhost query listener (not implemented)
-paths:
-  /api/v1/health:
-    get:
-      summary: Query API health status
-      responses:
-        '200':
-          description: Health check response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    enum: [ok, degraded]
-                  version:
-                    type: string
-                required: [status, version]
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Request X-Ray Query API",
+    "version": "0.1.0",
+    "description": "Read-only loopback API for persisted traces."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:4731"
+    }
+  ],
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden authority or origin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The query service is temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Other request error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/traces": {
+      "get": {
+        "operationId": "listTraces",
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TracePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid path, query or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden authority or origin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The query service is temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Other request error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of records.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque cursor from the preceding page.",
+            "schema": {
+              "$ref": "#/components/schemas/Cursor"
+            }
+          },
+          {
+            "name": "traceId",
+            "in": "query",
+            "description": "Exact trace ID.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{32}$"
+            }
+          },
+          {
+            "name": "service",
+            "in": "query",
+            "description": "Exact observed service name.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "route",
+            "in": "query",
+            "description": "Exact observed http.route value.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "description": "Filter by whether any persisted span recorded an error.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Observed trace status.",
+            "schema": {
+              "$ref": "#/components/schemas/TraceStatus"
+            }
+          },
+          {
+            "name": "sinceNs",
+            "in": "query",
+            "description": "Inclusive lower bound on trace start in Unix nanoseconds.",
+            "schema": {
+              "$ref": "#/components/schemas/Nanoseconds"
+            }
+          },
+          {
+            "name": "untilNs",
+            "in": "query",
+            "description": "Exclusive upper bound on trace start in Unix nanoseconds.",
+            "schema": {
+              "$ref": "#/components/schemas/Nanoseconds"
+            }
+          },
+          {
+            "name": "durationMinNs",
+            "in": "query",
+            "description": "Inclusive minimum trace duration in nanoseconds.",
+            "schema": {
+              "$ref": "#/components/schemas/Nanoseconds"
+            }
+          },
+          {
+            "name": "durationMaxNs",
+            "in": "query",
+            "description": "Inclusive maximum trace duration in nanoseconds.",
+            "schema": {
+              "$ref": "#/components/schemas/Nanoseconds"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/traces/{id}": {
+      "get": {
+        "operationId": "getTrace",
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trace"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid path, query or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden authority or origin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Trace not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The query service is temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Other request error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{32}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/traces/{id}/spans": {
+      "get": {
+        "operationId": "listSpans",
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpanPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid path, query or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden authority or origin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Trace not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The requested page exceeds the response size limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The query service is temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Other request error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{32}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of records.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque cursor from the preceding page.",
+            "schema": {
+              "$ref": "#/components/schemas/Cursor"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/services": {
+      "get": {
+        "operationId": "listServices",
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServicePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid path, query or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden authority or origin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The requested page exceeds the response size limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The query service is temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Other request error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of records.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque cursor from the preceding page.",
+            "schema": {
+              "$ref": "#/components/schemas/Cursor"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/stats": {
+      "get": {
+        "operationId": "getStats",
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stats"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden authority or origin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The query service is temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Other request error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/config/capabilities": {
+      "get": {
+        "operationId": "getCapabilities",
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Capabilities"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden authority or origin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The query service is temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Other request error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Nanoseconds": {
+        "type": "string",
+        "pattern": "^[0-9]{1,19}$",
+        "description": "Nonnegative signed-64-bit integer encoded as a decimal string."
+      },
+      "TraceId": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{32}$"
+      },
+      "SpanId": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{16}$"
+      },
+      "Cursor": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]+$"
+      },
+      "TraceStatus": {
+        "type": "string",
+        "enum": [
+          "error",
+          "ok",
+          "unset"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message",
+              "requestId"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "FORBIDDEN",
+                  "INVALID_QUERY",
+                  "INVALID_TRACE_ID",
+                  "TRACE_NOT_FOUND",
+                  "RESPONSE_TOO_LARGE",
+                  "STORAGE_UNAVAILABLE",
+                  "NOT_FOUND",
+                  "METHOD_NOT_ALLOWED"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "version"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "Completeness": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "state",
+          "missingParentCount",
+          "lastSeenAtUnixNs"
+        ],
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "observed",
+              "missing_parents"
+            ]
+          },
+          "missingParentCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "lastSeenAtUnixNs": {
+            "$ref": "#/components/schemas/Nanoseconds"
+          }
+        }
+      },
+      "Trace": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "traceId",
+          "startedAtUnixNs",
+          "endedAtUnixNs",
+          "durationNs",
+          "firstSeenAtUnixNs",
+          "spanCount",
+          "hasError",
+          "status",
+          "completeness",
+          "serviceCount"
+        ],
+        "properties": {
+          "traceId": {
+            "$ref": "#/components/schemas/TraceId"
+          },
+          "startedAtUnixNs": {
+            "$ref": "#/components/schemas/Nanoseconds"
+          },
+          "endedAtUnixNs": {
+            "$ref": "#/components/schemas/Nanoseconds"
+          },
+          "durationNs": {
+            "$ref": "#/components/schemas/Nanoseconds"
+          },
+          "firstSeenAtUnixNs": {
+            "$ref": "#/components/schemas/Nanoseconds"
+          },
+          "spanCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "hasError": {
+            "type": "boolean"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TraceStatus"
+          },
+          "completeness": {
+            "$ref": "#/components/schemas/Completeness"
+          },
+          "serviceCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "Status": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "Entity": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaUrl",
+          "entityType",
+          "idKeys",
+          "descriptionKeys"
+        ],
+        "properties": {
+          "schemaUrl": {
+            "type": "string"
+          },
+          "entityType": {
+            "type": "string"
+          },
+          "idKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "descriptionKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Resource": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "attributes",
+          "droppedAttributesCount",
+          "entityRefs"
+        ],
+        "properties": {
+          "attributes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Attribute"
+            }
+          },
+          "droppedAttributesCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "entityRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Entity"
+            }
+          }
+        }
+      },
+      "Scope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "version",
+          "attributes",
+          "droppedAttributesCount"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "attributes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Attribute"
+            }
+          },
+          "droppedAttributesCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "Event": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "timeUnixNs",
+          "attributes",
+          "droppedAttributesCount"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "timeUnixNs": {
+            "$ref": "#/components/schemas/Nanoseconds"
+          },
+          "attributes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Attribute"
+            }
+          },
+          "droppedAttributesCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "Link": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "traceId",
+          "spanId",
+          "traceState",
+          "flags",
+          "attributes",
+          "droppedAttributesCount"
+        ],
+        "properties": {
+          "traceId": {
+            "$ref": "#/components/schemas/TraceId"
+          },
+          "spanId": {
+            "$ref": "#/components/schemas/SpanId"
+          },
+          "traceState": {
+            "type": "string"
+          },
+          "flags": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "attributes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Attribute"
+            }
+          },
+          "droppedAttributesCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "Span": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "traceId",
+          "spanId",
+          "parentSpanId",
+          "name",
+          "kind",
+          "traceState",
+          "flags",
+          "startedAtUnixNs",
+          "endedAtUnixNs",
+          "durationNs",
+          "status",
+          "route",
+          "resourceSchemaUrl",
+          "resource",
+          "scopeSchemaUrl",
+          "scope",
+          "attributes",
+          "events",
+          "links",
+          "droppedAttributesCount",
+          "droppedEventsCount",
+          "droppedLinksCount"
+        ],
+        "properties": {
+          "traceId": {
+            "$ref": "#/components/schemas/TraceId"
+          },
+          "spanId": {
+            "$ref": "#/components/schemas/SpanId"
+          },
+          "parentSpanId": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpanId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "integer"
+          },
+          "traceState": {
+            "type": "string"
+          },
+          "flags": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "startedAtUnixNs": {
+            "$ref": "#/components/schemas/Nanoseconds"
+          },
+          "endedAtUnixNs": {
+            "$ref": "#/components/schemas/Nanoseconds"
+          },
+          "durationNs": {
+            "$ref": "#/components/schemas/Nanoseconds"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Status"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "route": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resourceSchemaUrl": {
+            "type": "string"
+          },
+          "resource": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Resource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scopeSchemaUrl": {
+            "type": "string"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Scope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "attributes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Attribute"
+            }
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Link"
+            }
+          },
+          "droppedAttributesCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "droppedEventsCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "droppedLinksCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "Attribute": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "value"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttributeValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "AttributeValue": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "empty"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "string"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "bool"
+                ]
+              },
+              "value": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "int"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,19}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "double"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "bytes"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "contentEncoding": "base64"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "array"
+                ]
+              },
+              "value": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AttributeValue"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "key_value_list"
+                ]
+              },
+              "value": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Attribute"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Service": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "spanCount",
+          "traceCount"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "spanCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "traceCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "Stats": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "traceCount",
+          "spanCount",
+          "serviceCount",
+          "errorTraceCount",
+          "runtime"
+        ],
+        "properties": {
+          "traceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "spanCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "serviceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "errorTraceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RuntimeStats"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "Capabilities": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "persistedTraces",
+          "routeFilter",
+          "spanEvents",
+          "spanLinks",
+          "traceCompleteness",
+          "ingestionCounters",
+          "samplingCoverage",
+          "maxPageSize",
+          "retentionCounters"
+        ],
+        "properties": {
+          "persistedTraces": {
+            "type": "boolean"
+          },
+          "routeFilter": {
+            "type": "boolean"
+          },
+          "spanEvents": {
+            "type": "boolean"
+          },
+          "spanLinks": {
+            "type": "boolean"
+          },
+          "traceCompleteness": {
+            "type": "boolean"
+          },
+          "ingestionCounters": {
+            "type": "boolean"
+          },
+          "samplingCoverage": {
+            "type": "boolean"
+          },
+          "maxPageSize": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "retentionCounters": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TracePage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Trace"
+            },
+            "maxItems": 100
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Cursor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "SpanPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Span"
+            },
+            "maxItems": 100
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Cursor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "ServicePage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Service"
+            },
+            "maxItems": 100
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Cursor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "IngestionStats": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sourceEndpoint",
+          "acceptedSpans",
+          "rejectedSpans",
+          "duplicateSpans",
+          "conflictingSpans",
+          "redactedSpans",
+          "redactedFields",
+          "validationOnlySpans",
+          "sizeErrors",
+          "invalidPayloads",
+          "admissionRejections",
+          "shutdownRejections",
+          "bodyTimeouts",
+          "writeFailures",
+          "writeTimeouts"
+        ],
+        "properties": {
+          "sourceEndpoint": {
+            "type": "string",
+            "const": "/v1/traces"
+          },
+          "acceptedSpans": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "rejectedSpans": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "duplicateSpans": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "conflictingSpans": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "redactedSpans": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "redactedFields": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "validationOnlySpans": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sizeErrors": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "invalidPayloads": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "admissionRejections": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "shutdownRejections": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "bodyTimeouts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "writeFailures": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "writeTimeouts": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "RetentionStats": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "deletedTraces",
+          "liveBytesAtLastPass",
+          "failures"
+        ],
+        "properties": {
+          "deletedTraces": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "liveBytesAtLastPass": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failures": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "RuntimeStats": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ingestion",
+          "retention"
+        ],
+        "properties": {
+          "ingestion": {
+            "$ref": "#/components/schemas/IngestionStats"
+          },
+          "retention": {
+            "$ref": "#/components/schemas/RetentionStats"
+          }
+        }
+      }
+    }
+  }
+}
