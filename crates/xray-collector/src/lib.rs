@@ -4,6 +4,7 @@ mod admission;
 mod limits;
 mod preflight;
 mod redaction;
+pub mod runtime;
 
 pub use admission::{Admission, Diagnostics, Ingestion, SinkOutcome};
 pub use limits::Limits;

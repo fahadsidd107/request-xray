@@ -51,3 +51,6 @@ logs/
 # Local Request X-Ray data and SQLite sidecars
 .request-xray/
 *.sqlite-*
+
+# Locally staged npm CLI tarballs
+/npm-cli-stage/

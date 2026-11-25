@@ -1,6 +1,6 @@
 # Request X-Ray
 
-> **Project status: unreleased.** The loopback OTLP collector, SQLite trace repository, read-only query API and Node SDK are runnable from source. npm publication, the CLI and dashboard remain planned.
+> **Project status: unreleased.** The loopback OTLP collector, SQLite trace repository, read-only query API and Node SDK are runnable from source. The native CLI and local npm tarball workflow are available from source. The React dashboard can be built into the native CLI. Registry publication remains planned.
 
 **Request X-Ray** is a Rust-powered, local-first request investigation platform distributed through **npm**. It turns OpenTelemetry traces into a usable debugging experience: request waterfalls, service relationships, failure propagation, query-pattern analysis, trace comparisons, and evidence-backed explanations.
 
@@ -69,7 +69,7 @@ Legend: **P0** first useful release; **P1** next; **P2** advanced; **R** researc
 | Authenticated remote/team mode, advanced storage | R | Separate threat model and deployment mode |
 | Browser trace UI + end-user navigation | R | Browser OTel instrumentation has distinct maturity constraints |
 
-For a runnable app integration, see the [Node SDK guide](docs/NODE_SDK.md).
+For a runnable app integration, see the [Node SDK guide](docs/NODE_SDK.md). The local dashboard includes a filtered trace explorer and waterfall. [Dashboard build and use](docs/DASHBOARD.md) · [CLI and tarball guide](docs/CLI.md)
 
 For the complete specifications see [ARCHITECTURE.md](docs/ARCHITECTURE.md), [ROADMAP.md](docs/ROADMAP.md), and [DOCUMENTATION.md](docs/DOCUMENTATION.md).
 

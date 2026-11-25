@@ -1,0 +1,89 @@
+name: npm CLI tarballs
+
+on:
+  pull_request:
+    paths:
+      - 'Cargo.*'
+      - 'rust-toolchain.toml'
+      - 'crates/**'
+      - 'schemas/vendor/**'
+      - 'packages/cli/**'
+      - 'packages/dashboard/**'
+      - 'packages/query-client/**'
+      - 'packages/node/**'
+      - 'examples/express-basic/**'
+      - 'test/dashboard/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'scripts/*npm-cli.cjs'
+      - 'tests/fixtures/otlp/**'
+      - '.github/workflows/npm-cli.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pack:
+    name: Pack and smoke test ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            target: darwin-arm64
+            binary: request-xray-native
+          - runner: macos-15-intel
+            target: darwin-x64
+            binary: request-xray-native
+          - runner: ubuntu-22.04-arm
+            target: linux-arm64-gnu
+            binary: request-xray-native
+          - runner: ubuntu-22.04
+            target: linux-x64-gnu
+            binary: request-xray-native
+          - runner: windows-2022
+            target: win32-x64
+            binary: request-xray-native.exe
+    runs-on: ${{ matrix.runner }}
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '11.0'
+      XRAY_REQUIRE_DASHBOARD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.85.0'
+      - name: Build dashboard
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @request-xray/query-client build
+          pnpm --filter @request-xray/dashboard build
+      - name: Build native executable
+        run: cargo build --locked --release -p xray-cli
+      - name: Stage platform and launcher
+        run: node scripts/stage-npm-cli.cjs target/release/${{ matrix.binary }} npm-cli-stage ${{ matrix.target }}
+      - name: Smoke test installed tarballs
+        run: node scripts/smoke-npm-cli.cjs npm-cli-stage
+      - name: Playwright dashboard smoke and benchmark
+        if: matrix.target == 'linux-x64-gnu'
+        run: |
+          pnpm --filter @request-xray/node build
+          pnpm exec playwright install --with-deps chromium
+          cargo run --locked -p xray-otlp --example dashboard_fixtures -- target/dashboard-playwright/fixtures
+          pnpm test:dashboard
+      - uses: actions/upload-artifact@v4
+        with:
+          name: request-xray-${{ matrix.target }}
+          path: npm-cli-stage/*.tgz
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.target == 'linux-x64-gnu'
+        with:
+          name: request-xray-dashboard-verification
+          path: target/dashboard-playwright/screenshots/
+          if-no-files-found: ignore

@@ -1,5 +1,6 @@
 //! Read-only loopback HTTP API for persisted traces.
 
+mod dashboard;
 mod model;
 
 pub use model::{IngestionStats, RetentionStats, RuntimeStats};
@@ -72,13 +73,29 @@ impl FromRef<ApiState> for Repository {
     }
 }
 
+#[derive(Clone, Copy)]
+pub enum LocalView {
+    Live,
+    Demo,
+}
+
 pub async fn serve(
     listener: TcpListener,
     repository: Repository,
     diagnostics: Option<DiagnosticsSource>,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> io::Result<()> {
-    let app = router_with_diagnostics(repository, listener.local_addr()?, diagnostics)?;
+    serve_with_view(listener, repository, diagnostics, None, shutdown).await
+}
+
+pub async fn serve_with_view(
+    listener: TcpListener,
+    repository: Repository,
+    diagnostics: Option<DiagnosticsSource>,
+    view: Option<LocalView>,
+    shutdown: impl Future<Output = ()> + Send + 'static,
+) -> io::Result<()> {
+    let app = router_with_diagnostics(repository, listener.local_addr()?, diagnostics, view)?;
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown)
         .await
@@ -91,20 +108,21 @@ struct Gate {
 }
 
 pub fn router(repository: Repository, address: SocketAddr) -> io::Result<Router> {
-    router_with_diagnostics(repository, address, None)
+    router_with_diagnostics(repository, address, None, None)
 }
 
 fn router_with_diagnostics(
     repository: Repository,
     address: SocketAddr,
     diagnostics: Option<DiagnosticsSource>,
+    view: Option<LocalView>,
 ) -> io::Result<Router> {
     validate_address(address)?;
     let gate = Gate {
         address,
         slots: Arc::new(Semaphore::new(8)),
     };
-    Ok(Router::new()
+    let mut app = Router::new()
         .route("/api/v1/health", get(health))
         .route("/api/v1/traces", get(traces))
         .route("/api/v1/traces/{id}", get(trace))
@@ -128,8 +146,11 @@ fn router_with_diagnostics(
         .with_state(ApiState {
             repository,
             diagnostics,
-        })
-        .layer(middleware::from_fn_with_state(gate, guard)))
+        });
+    if let Some(view) = view {
+        app = app.merge(dashboard::routes(view));
+    }
+    Ok(app.layer(middleware::from_fn_with_state(gate, guard)))
 }
 
 async fn guard(State(gate): State<Gate>, request: Request, next: Next) -> Response {
@@ -170,6 +191,15 @@ async fn guard(State(gate): State<Gate>, request: Request, next: Next) -> Respon
         response
             .headers_mut()
             .insert(name, HeaderValue::from_static(value));
+    }
+    if response
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .is_some_and(|value| value.as_bytes().starts_with(b"text/html"))
+    {
+        response.headers_mut().insert("content-security-policy", HeaderValue::from_static(
+            "default-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; connect-src 'self'"
+        ));
     }
     response
 }
