@@ -66,6 +66,8 @@ npx --offline request-xray demo --no-open --collector-port 0 --query-port 0
 
 ## Verification status
 
-The installed tarball smoke passed on macOS ARM64 and macOS x64 on 2026-11-23, including the x64 binary and Node runtime under Rosetta. Linux ARM64 and x64 passed in glibc 2.36 containers, with x64 running under emulation. The verified artifacts are in the local `target/npm-cli-tarballs` directory. The smoke tests exclude Cargo from PATH and use an offline npm install. Windows x64 is configured in the five-target CI matrix and still awaits execution on its platform runner. Steps 6.3 and 6.8 remain open until full matrix verification.
+The installed tarball smoke passed on macOS ARM64 and macOS x64 on 2026-11-23, including the x64 binary and Node runtime under Rosetta. Linux ARM64 and x64 passed in glibc 2.36 containers, with x64 running under emulation. The verified artifacts are in the local `target/npm-cli-tarballs` directory. The smoke tests exclude Cargo from PATH and use an offline npm install.
 
 On 2026-11-25, the dashboard-enabled macOS ARM64 tarballs passed the expanded smoke test. It checks the installed launcher entry point, exact optional dependency versions, platform metadata, absence of install hooks, and exit code 4 for a missing package, a mismatched version, or a modified executable.
+
+On 2026-11-25, GitHub Actions passed the installed-tarball smoke on all five targets, including Windows x64. The jobs built release binaries with the embedded dashboard, installed both tarballs in an offline npm project, and uploaded the packaged artifacts. [Packaging CI run](https://github.com/fahadsidd107/request-xray/actions/runs/45649415386)

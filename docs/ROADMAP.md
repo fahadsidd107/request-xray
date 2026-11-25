@@ -1,6 +1,6 @@
 # Request X-Ray — Implementation Roadmap
 
-**Status:** Steps 1.1–5.9 and 7.1–7.9 verified. See the [dashboard verification](DASHBOARD.md#verification-results). The CLI and npm packaging are implemented. Full platform verification for Step 6 remains open. See the [CLI verification](CLI.md#verification-status). See the [Node SDK verification](NODE_SDK.md#verification). See the [query API verification](QUERY_API.md#contract-and-client). See the [collector verification](COLLECTOR.md#verification-results) and [storage verification](STORAGE.md#verification). Step 0 still has open gates. See the [foundation audit](STEP0_AUDIT.md) for verification results and blockers. **A checkbox means code + tests + documented proof**, not merely files created.
+**Status:** Steps 1.1–5.9 and 7.1–7.9 verified. See the [dashboard verification](DASHBOARD.md#verification-results). Steps 6.1–6.8 verified. See the [CLI verification](CLI.md#verification-status). See the [Node SDK verification](NODE_SDK.md#verification). See the [query API verification](QUERY_API.md#contract-and-client). See the [collector verification](COLLECTOR.md#verification-results) and [storage verification](STORAGE.md#verification). Step 0 still has open gates. See the [foundation audit](STEP0_AUDIT.md) for verification results and blockers. **A checkbox means code + tests + documented proof**, not merely files created.
 
 ## Operating instructions for contributors / Codex
 
@@ -137,12 +137,12 @@ Read `README.md`, `docs/ARCHITECTURE.md`, this file, and `docs/DOCUMENTATION.md`
 
 - [x] **6.1 Rust Clap commands:** `serve`, `version`, `doctor`, `traces list`, `traces show`, `config validate` as internal/native primitives.
 - [x] **6.2 npm CLI shim:** `request-xray` package with `bin`, platform resolver, actionable error on missing/unsupported binary.
-- [ ] **6.3 Platform packages:** Prebuilt macOS ARM64/x64, Linux x64/ARM64 glibc, Windows x64; executable permissions and integrity. Windows runner verification is pending.
+- [x] **6.3 Platform packages:** Prebuilt macOS ARM64/x64, Linux x64/ARM64 glibc, Windows x64; executable permissions and integrity.
 - [x] **6.4 UX commands:** `npx request-xray init`, `dev`, `doctor`, `traces`, `inspect`, `demo`; only expose actually working commands in help.
 - [x] **6.5 Config:** Deterministic precedence CLI flags > env > project config > defaults; schema validation and secret redaction.
 - [x] **6.6 Process management:** `dev` starts Rust collector/API, serves UI, catches signals, cleans up, handles port collisions.
 - [x] **6.7 No unsafe installers:** No remote executable fetched on npm postinstall; package downloaded via normal npm distribution.
-- [ ] **6.8 Tarball smoke tests:** `npm pack`, fresh temp install, CLI help/version/dev/doctor on supported platforms. Windows runner verification is pending.
+- [x] **6.8 Tarball smoke tests:** `npm pack`, fresh temp install, CLI help/version/dev/doctor on supported platforms.
 
 **Verify:** run the [tarball smoke test](CLI.md#build-and-test-npm-tarballs). The installed launcher starts the native collector with Cargo absent from PATH.
 
