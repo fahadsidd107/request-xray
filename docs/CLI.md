@@ -49,6 +49,8 @@ corepack pnpm --filter @request-xray/dashboard build
 XRAY_REQUIRE_DASHBOARD=1 cargo build --locked --release -p xray-cli
 node scripts/stage-npm-cli.cjs target/release/request-xray-native npm-cli-stage
 XRAY_REQUIRE_DASHBOARD=1 node scripts/smoke-npm-cli.cjs npm-cli-stage
+corepack pnpm --filter @request-xray/node build
+node scripts/pack-npm-sdk.cjs npm-cli-stage
 ```
 
 On Windows, set `$env:XRAY_REQUIRE_DASHBOARD = "1"` in PowerShell and use `target/release/request-xray-native.exe`. The staging directory must be new. The smoke script packs both packages, installs them into a clean npm project with lifecycle scripts disabled, restricts the runtime PATH to Node and required system tools, and exercises help, version, init, config precedence, doctor, port collisions, trace inspection, demo, and shutdown. It also checks missing packages and a modified native executable.

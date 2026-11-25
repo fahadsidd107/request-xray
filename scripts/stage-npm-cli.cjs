@@ -29,8 +29,9 @@ fs.cpSync(path.join(root, 'packages/cli'), cliDir, {
   recursive: true,
   filter: source => !['node_modules', 'dist'].includes(path.basename(source)),
 });
+const { private: _private, ...launcher } = cli;
 const optionalDependencies = Object.fromEntries(Object.keys(targets).map(key => [`@request-xray/cli-${key}`, cli.version]));
-fs.writeFileSync(path.join(cliDir, 'package.json'), JSON.stringify({ ...cli, optionalDependencies }, null, 2) + '\n');
+fs.writeFileSync(path.join(cliDir, 'package.json'), JSON.stringify({ ...launcher, optionalDependencies }, null, 2) + '\n');
 const packaged = path.join(binDir, target.binary);
 fs.copyFileSync(binary, packaged);
 if (target.os !== 'win32') {
@@ -39,7 +40,7 @@ if (target.os !== 'win32') {
 }
 const sha256 = createHash('sha256').update(fs.readFileSync(packaged)).digest('hex');
 fs.writeFileSync(path.join(platformDir, 'package.json'), JSON.stringify({
-  name: target.name, version: cli.version, private: true, license: 'Apache-2.0',
+  name: target.name, version: cli.version, license: cli.license, repository: cli.repository,
   os: [target.os], cpu: [target.cpu], ...(target.libc && { libc: [target.libc] }),
   exports: { './package.json': './package.json' },
   files: ['bin'],

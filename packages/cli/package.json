@@ -14,5 +14,9 @@
   ],
   "engines": {
     "node": "^22.0.0 || ^24.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fahadsidd107/request-xray.git"
   }
 }

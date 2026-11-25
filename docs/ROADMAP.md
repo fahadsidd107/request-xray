@@ -170,13 +170,15 @@ Read `README.md`, `docs/ARCHITECTURE.md`, this file, and `docs/DOCUMENTATION.md`
 
 ## STEP 8 — v0.1 release engineering [M2]
 
-- [ ] **8.1 Release checklist:** Versioning, changelog, `npm pack --dry-run`, license files, docs, provenance, binary checksums, SBOM.
+- [x] **8.1 Release checklist:** Versioning, changelog, `npm pack --dry-run`, license files, docs, provenance, binary checksums, SBOM.
 - [ ] **8.2 Registry verification:** Check final package names, permissions, npm token/trusted publisher; all actions require owner approval.
 - [ ] **8.3 CI matrix:** Build platform assets, install tarballs in clean runners, test official supported Node LTS versions.
-- [ ] **8.4 Publish ordering:** Platform binaries first, root npm CLI package last, SDK package with compatible versions; handle partial publication retries.
-- [ ] **8.5 Fresh-user docs:** Test README commands from zero on macOS ARM64 + Linux x64 at minimum; capture actual output.
-- [ ] **8.6 Security test:** Local-only binding, redaction, no credential capture, bounded ingestion, npm package auditing.
+- [x] **8.4 Publish ordering:** Platform binaries first, root npm CLI package last, SDK package with compatible versions; handle partial publication retries.
+- [x] **8.5 Fresh-user docs:** Test README commands from zero on macOS ARM64 + Linux x64 at minimum; capture actual output.
+- [x] **8.6 Security test:** Local-only binding, redaction, no credential capture, bounded ingestion, npm package auditing.
 - [ ] **8.7 Owner gate:** Only after explicit confirmation, tag, release, publish package(s), then verify `npm view` and fresh installation.
+
+The release checklist and clean-install/security evidence are in the [release policy](RELEASE_POLICY.md). The expanded five-target Node 22/24 workflow is implemented and passed static validation. The hosted matrix run for these changes is still pending. [Registry preflight](NAME_VERIFICATION.md#npm-release-preflight-on-2026-11-25) confirmed the GitHub repository is public. npm owner permissions, first-publication authentication and the remaining Rust audit findings are open release gates.
 
 **Verify:** A new user can install, instrument Express, send a request, open dashboard, and see spans without building Rust.
 

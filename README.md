@@ -73,32 +73,27 @@ For a runnable app integration, see the [Node SDK guide](docs/NODE_SDK.md). The 
 
 For the complete specifications see [ARCHITECTURE.md](docs/ARCHITECTURE.md), [ROADMAP.md](docs/ROADMAP.md), and [DOCUMENTATION.md](docs/DOCUMENTATION.md).
 
-## Planned npm experience (NOT YET AVAILABLE)
+## Try the local npm packages
+
+Use Node.js 22 or 24 and Bash. Download the matching platform artifacts and the SDK tarball from the [packaging workflow](https://github.com/fahadsidd107/request-xray/actions/workflows/npm-cli.yml), or [build them locally](docs/CLI.md#build-and-test-npm-tarballs). The example uses macOS ARM64 and version 0.1.0. For Linux x64, substitute `linux-x64-gnu` for `darwin-arm64`. Set `XRAY_TARBALLS` to the absolute path of the directory containing all three files.
 
 ```bash
-# Future published package identifiers, subject to availability
-npm install @request-xray/node
-npx request-xray init
-npx request-xray dev
-npx request-xray doctor
+mkdir request-xray-quickstart
+cd request-xray-quickstart
+npm init -y
+npm install --ignore-scripts "$XRAY_TARBALLS/request-xray-0.1.0.tgz" \
+  "$XRAY_TARBALLS/request-xray-cli-darwin-arm64-0.1.0.tgz" \
+  "$XRAY_TARBALLS/request-xray-node-0.1.0.tgz"
+npx --offline request-xray --version
+npx --offline request-xray init
+npx --offline request-xray demo --no-open --collector-port 0 --query-port 0
 ```
 
-Minimal intended app instrumentation:
+Open the local trace view URL printed by `demo`. It contains a labeled synthetic trace with three spans. In another terminal in the same directory, use the printed collector and query ports to run `npx --offline request-xray --collector-port "$OTLP_PORT" --query-port "$QUERY_PORT" doctor` and `npx --offline request-xray --query-port "$QUERY_PORT" traces list`. Stop the demo with Ctrl+C.
 
-```ts
-// instrumentation.ts — illustrative, not executable until SDK exists
-import { startXRay } from '@request-xray/node';
+To see traces from your own application, use `npx --offline request-xray dev --no-open` and follow the [Node SDK guide](docs/NODE_SDK.md). Load the generated instrumentation before importing your HTTP server or framework.
 
-await startXRay({
-  serviceName: 'orders-api',
-  collectorEndpoint: 'http://127.0.0.1:4318/v1/traces',
-  capture: { http: true },
-});
-```
-
-**Initialization order matters:** instrument **before** importing the HTTP server/framework. For Node.js, startup preload patterns and ESM loader behavior vary; follow [DOCUMENTATION.md](docs/DOCUMENTATION.md) and version-specific OpenTelemetry docs. Running `init` may generate a preload file but cannot guarantee instrumentation of an application already loaded.
-
-### Planned local ports
+### Default local ports
 
 - `127.0.0.1:4318`: OTLP/HTTP collector, `POST /v1/traces` (not the dashboard).
 - `127.0.0.1:4731`: dashboard and read-only query API (configurable).
@@ -183,4 +178,4 @@ Run the native collector with `cargo run --locked -p xray-collector` and send lo
 
 ## License
 
-**Planned:** Apache-2.0. Add the license file and copyright notices during Step 0.
+[Apache-2.0](LICENSE)

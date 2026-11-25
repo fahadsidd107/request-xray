@@ -2,6 +2,7 @@
 
 const assert = require('node:assert/strict');
 const { spawn, spawnSync } = require('node:child_process');
+const { createHash } = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -40,9 +41,14 @@ function run(args, { cwd = project, env = childEnv, code = 0 } = {}) {
 }
 
 function pack(name) {
-  const result = run([npmEntry, 'pack', '--ignore-scripts', '--json', '--pack-destination', stage],
-    { cwd: path.join(stage, name) });
-  return path.join(stage, JSON.parse(result.stdout)[0].filename);
+  const args = [npmEntry, 'pack', '--ignore-scripts', '--json'];
+  const options = { cwd: path.join(stage, name) };
+  const [plan] = JSON.parse(run([...args, '--dry-run'], options).stdout);
+  const [packed] = JSON.parse(run([...args, '--pack-destination', stage], options).stdout);
+  assert.deepEqual(packed.files, plan.files);
+  assert.ok(plan.files.some(file => file.path === 'LICENSE'));
+  fs.writeFileSync(path.join(stage, `${name}-pack.json`), JSON.stringify(plan, null, 2) + '\n');
+  return path.join(stage, packed.filename);
 }
 
 async function eventually(check) {
@@ -115,6 +121,9 @@ async function main() {
   const platformDir = path.join(project, 'node_modules', target.name);
   const installedBinary = path.join(platformDir, 'bin', target.binary);
   const native = (...args) => run([shim, ...args]);
+  const checksums = [platformTarball, cliTarball].map(file =>
+    `${createHash('sha256').update(fs.readFileSync(file)).digest('hex')}  ${path.basename(file)}`);
+  fs.writeFileSync(path.join(stage, 'cli.sha256'), checksums.join('\n') + '\n');
   const version = require(path.join(stage, 'cli/package.json')).version;
   const launcherManifest = JSON.parse(fs.readFileSync(path.join(path.dirname(shim), '../package.json'), 'utf8'));
   const platformManifestPath = path.join(platformDir, 'package.json');
@@ -127,7 +136,11 @@ async function main() {
   assert.deepEqual(platformManifest.os, [target.os]);
   assert.deepEqual(platformManifest.cpu, [target.cpu]);
   assert.deepEqual(platformManifest.libc, target.libc ? [target.libc] : undefined);
+  for (const listenFlag of ['--collector-listen', '--query-listen']) {
+    assert.match(run([shim, listenFlag, '0.0.0.0:0', 'config', 'validate'], { code: 2 }).stderr, /loopback/);
+  }
   for (const manifest of [launcherManifest, platformManifest]) {
+    assert.equal(manifest.private, undefined);
     for (const hook of ['preinstall', 'install', 'postinstall']) {
       assert.equal(manifest.scripts?.[hook], undefined);
     }
