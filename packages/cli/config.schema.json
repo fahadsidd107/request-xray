@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Request X-Ray project configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "version": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "const": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "collectorListen": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "description": "IPv4 or bracketed IPv6 loopback socket address with an explicit port."
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "queryListen": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "description": "IPv4 or bracketed IPv6 loopback socket address with an explicit port."
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "databasePath": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "retentionAgeSeconds": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "retentionMaxBytes": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "maxCompressedBytes": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 67108864
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "maxDecodedBytes": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 67108864
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "maxInFlight": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "bodyTimeoutMs": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120000
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "sinkTimeoutMs": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120000
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "allowAttributes": {
+      "anyOf": [
+        {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "denyAttributes": {
+      "anyOf": [
+        {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

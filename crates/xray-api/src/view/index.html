@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Request X-Ray · Local traces</title>
+<link rel="stylesheet" href="/local-view.css">
+<script defer src="/local-view.js"></script>
+</head>
+<body data-mode="live">
+<main>
+<header><h1>Request X-Ray</h1><p id="context">Local traces</p></header>
+<section aria-labelledby="heading">
+<div class="bar"><h2 id="heading">Recent traces</h2><button id="refresh">Refresh</button></div>
+<p id="status" role="status"></p>
+<ul id="traces"></ul>
+<button id="more" hidden>Next page</button>
+</section>
+<section id="details" aria-live="polite" hidden>
+<h2>Trace spans</h2><ul id="spans"></ul><button id="more-spans" hidden>Next span page</button>
+</section>
+</main>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # Request X-Ray — Implementation Roadmap
 
-**Status:** Steps 1.1–5.9 verified. See the [Node SDK verification](NODE_SDK.md#verification). See the [query API verification](QUERY_API.md#contract-and-client). See the [collector verification](COLLECTOR.md#verification-results) and [storage verification](STORAGE.md#verification). Step 0 still has open gates. See the [foundation audit](STEP0_AUDIT.md) for verification results and blockers. **A checkbox means code + tests + documented proof**, not merely files created.
+**Status:** Steps 1.1–5.9 and 7.1–7.9 verified. See the [dashboard verification](DASHBOARD.md#verification-results). Steps 6.1–6.8 verified. See the [CLI verification](CLI.md#verification-status). See the [Node SDK verification](NODE_SDK.md#verification). See the [query API verification](QUERY_API.md#contract-and-client). See the [collector verification](COLLECTOR.md#verification-results) and [storage verification](STORAGE.md#verification). Step 0 still has open gates. See the [foundation audit](STEP0_AUDIT.md) for verification results and blockers. **A checkbox means code + tests + documented proof**, not merely files created.
 
 ## Operating instructions for contributors / Codex
 
@@ -135,16 +135,16 @@ Read `README.md`, `docs/ARCHITECTURE.md`, this file, and `docs/DOCUMENTATION.md`
 
 ## STEP 6 — Rust CLI + npm packaging [M2]
 
-- [ ] **6.1 Rust Clap commands:** `serve`, `version`, `doctor`, `traces list`, `traces show`, `config validate` as internal/native primitives.
-- [ ] **6.2 npm CLI shim:** `request-xray` package with `bin`, platform resolver, actionable error on missing/unsupported binary.
-- [ ] **6.3 Platform packages:** Prebuilt macOS ARM64/x64, Linux x64/ARM64 glibc, Windows x64; executable permissions and integrity.
-- [ ] **6.4 UX commands:** `npx request-xray init`, `dev`, `doctor`, `traces`, `inspect`, `demo`; only expose actually working commands in help.
-- [ ] **6.5 Config:** Deterministic precedence CLI flags > env > project config > defaults; schema validation and secret redaction.
-- [ ] **6.6 Process management:** `dev` starts Rust collector/API, serves UI, catches signals, cleans up, handles port collisions.
-- [ ] **6.7 No unsafe installers:** No remote executable fetched on npm postinstall; package downloaded via normal npm distribution.
-- [ ] **6.8 Tarball smoke tests:** `npm pack`, fresh temp install, CLI help/version/dev/doctor on supported platforms.
+- [x] **6.1 Rust Clap commands:** `serve`, `version`, `doctor`, `traces list`, `traces show`, `config validate` as internal/native primitives.
+- [x] **6.2 npm CLI shim:** `request-xray` package with `bin`, platform resolver, actionable error on missing/unsupported binary.
+- [x] **6.3 Platform packages:** Prebuilt macOS ARM64/x64, Linux x64/ARM64 glibc, Windows x64; executable permissions and integrity.
+- [x] **6.4 UX commands:** `npx request-xray init`, `dev`, `doctor`, `traces`, `inspect`, `demo`; only expose actually working commands in help.
+- [x] **6.5 Config:** Deterministic precedence CLI flags > env > project config > defaults; schema validation and secret redaction.
+- [x] **6.6 Process management:** `dev` starts Rust collector/API, serves UI, catches signals, cleans up, handles port collisions.
+- [x] **6.7 No unsafe installers:** No remote executable fetched on npm postinstall; package downloaded via normal npm distribution.
+- [x] **6.8 Tarball smoke tests:** `npm pack`, fresh temp install, CLI help/version/dev/doctor on supported platforms.
 
-**Verify:** npm tarball installed into a clean project starts native Rust collector without a Rust toolchain.
+**Verify:** run the [tarball smoke test](CLI.md#build-and-test-npm-tarballs). The installed launcher starts the native collector with Cargo absent from PATH.
 
 **Exit criterion:** npm can deliver and run the Rust platform tool reliably.
 
@@ -152,15 +152,15 @@ Read `README.md`, `docs/ARCHITECTURE.md`, this file, and `docs/DOCUMENTATION.md`
 
 ## STEP 7 — Dashboard MVP [M2]
 
-- [ ] **7.1 UI scaffold:** React/Vite/TypeScript, routing, theme and accessible components, API client generation.
-- [ ] **7.2 Overview:** Trace count, collector status, observed services, failures; clear empty/setup/error states.
-- [ ] **7.3 Trace table:** Stable pagination, filters, status badges, duration and service summaries.
-- [ ] **7.4 Trace waterfall:** Hierarchical spans, relative offset/duration, overlapping concurrent operations, expandable rows, zoom/pan.
-- [ ] **7.5 Span inspector:** Service, operation, kind, start/end, status, safe attributes, events, links, errors.
-- [ ] **7.6 Missing data:** Orphans, dropped/unsampled spans, late updates, skew indicators; never fake a fully connected tree.
-- [ ] **7.7 Performance:** 1k spans normal; benchmark a 10k-span trace with virtualization or canvas rendering if needed.
-- [ ] **7.8 Accessibility:** Keyboard navigation, labeled controls, table semantics, high contrast, reduced motion.
-- [ ] **7.9 Real E2E:** Run sample app, generate trace, verify exact IDs and timings appear in UI; demo mode clearly marked.
+- [x] **7.1 UI scaffold:** React/Vite/TypeScript, routing, theme and accessible components, API client generation.
+- [x] **7.2 Overview:** Trace count, collector status, observed services, failures; clear empty/setup/error states.
+- [x] **7.3 Trace table:** Stable pagination, filters, status badges, duration and service summaries.
+- [x] **7.4 Trace waterfall:** Hierarchical spans, relative offset/duration, overlapping concurrent operations, expandable rows, zoom/pan.
+- [x] **7.5 Span inspector:** Service, operation, kind, start/end, status, safe attributes, events, links, errors.
+- [x] **7.6 Missing data:** Orphans, dropped/unsampled spans, late updates, skew indicators; never fake a fully connected tree.
+- [x] **7.7 Performance:** 1k spans normal; benchmark a 10k-span trace with virtualization or canvas rendering if needed.
+- [x] **7.8 Accessibility:** Keyboard navigation, labeled controls, table semantics, high contrast, reduced motion.
+- [x] **7.9 Real E2E:** Run sample app, generate trace, verify exact IDs and timings appear in UI; demo mode clearly marked.
 
 **Verify:** Playwright smoke test from installed npm package to browser waterfall; empty DB handled; error/missing-parent fixture visible.
 
@@ -170,13 +170,15 @@ Read `README.md`, `docs/ARCHITECTURE.md`, this file, and `docs/DOCUMENTATION.md`
 
 ## STEP 8 — v0.1 release engineering [M2]
 
-- [ ] **8.1 Release checklist:** Versioning, changelog, `npm pack --dry-run`, license files, docs, provenance, binary checksums, SBOM.
+- [x] **8.1 Release checklist:** Versioning, changelog, `npm pack --dry-run`, license files, docs, provenance, binary checksums, SBOM.
 - [ ] **8.2 Registry verification:** Check final package names, permissions, npm token/trusted publisher; all actions require owner approval.
 - [ ] **8.3 CI matrix:** Build platform assets, install tarballs in clean runners, test official supported Node LTS versions.
-- [ ] **8.4 Publish ordering:** Platform binaries first, root npm CLI package last, SDK package with compatible versions; handle partial publication retries.
-- [ ] **8.5 Fresh-user docs:** Test README commands from zero on macOS ARM64 + Linux x64 at minimum; capture actual output.
-- [ ] **8.6 Security test:** Local-only binding, redaction, no credential capture, bounded ingestion, npm package auditing.
+- [x] **8.4 Publish ordering:** Platform binaries first, root npm CLI package last, SDK package with compatible versions; handle partial publication retries.
+- [x] **8.5 Fresh-user docs:** Test README commands from zero on macOS ARM64 + Linux x64 at minimum; capture actual output.
+- [x] **8.6 Security test:** Local-only binding, redaction, no credential capture, bounded ingestion, npm package auditing.
 - [ ] **8.7 Owner gate:** Only after explicit confirmation, tag, release, publish package(s), then verify `npm view` and fresh installation.
+
+The release checklist and clean-install/security evidence are in the [release policy](RELEASE_POLICY.md). The expanded five-target Node 22/24 workflow is implemented and passed static validation. The hosted matrix run for these changes is still pending. [Registry preflight](NAME_VERIFICATION.md#npm-release-preflight-on-2026-11-25) confirmed the GitHub repository is public. npm owner permissions, first-publication authentication and the remaining Rust audit findings are open release gates.
 
 **Verify:** A new user can install, instrument Express, send a request, open dashboard, and see spans without building Rust.
 

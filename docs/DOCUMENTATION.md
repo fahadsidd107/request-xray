@@ -91,135 +91,21 @@ npx request-xray demo
 
 Planned: launch synthetic ShopFlow-like services and make one reproducible request. All data is test data; dashboard clearly labels demo mode. No external payment/production APIs.
 
-## 5. Configuration reference (proposed)
+## 5. Configuration
 
-Proposed `request-xray.config.json` created by `init`:
+The [CLI configuration guide](CLI.md#configuration) lists the implemented project fields and their environment and flag overrides.
 
-```json
-{
-  "$schema": "./node_modules/request-xray/config.schema.json",
-  "mode": "local",
-  "collector": {
-    "host": "127.0.0.1",
-    "httpPort": 4318,
-    "maxCompressedBodyBytes": 4194304,
-    "maxDecompressedBodyBytes": 16777216
-  },
-  "dashboard": { "host": "127.0.0.1", "port": 4731 },
-  "storage": {
-    "driver": "sqlite",
-    "path": ".request-xray/traces.sqlite",
-    "retentionDays": 7,
-    "maxSizeMiB": 500
-  },
-  "privacy": {
-    "captureBodies": false,
-    "captureRawHeaders": false,
-    "captureSqlParameters": false,
-    "dropUrlQuery": true,
-    "denyAttributes": ["authorization", "cookie", "set-cookie", "password", "token"]
-  },
-  "analysis": { "rulesEnabled": true, "aiEnabled": false }
-}
-```
+## 6. CLI commands
 
-Values are **design defaults**, not validated performance recommendations. Final schema names/limits need ADRs, tests, and implementation. Default `captureBodies=false` is not a complete data-security solution; spans supplied by third-party instrumentation can still contain sensitive attributes, so collector redaction is also required.
-
-### Configuration precedence
-
-1. Explicit CLI flag (e.g. `--dashboard-port 4732`).
-2. Environment variable.
-3. Project configuration file.
-4. Defined defaults.
-
-The CLI must show which config file and profile were loaded without printing secrets.
-
-### Planned environment variables
-
-| Variable | Purpose | Default target |
-|---|---|---|
-| `REQUEST_XRAY_CONFIG` | Explicit config file path | `./request-xray.config.json` if present |
-| `REQUEST_XRAY_DB_PATH` | Local SQLite file path | `.request-xray/traces.sqlite` |
-| `REQUEST_XRAY_COLLECTOR_PORT` | Ingestion port | `4318` |
-| `REQUEST_XRAY_DASHBOARD_PORT` | Dashboard/query port | `4731` |
-| `REQUEST_XRAY_LOG_LEVEL` | Rust server log verbosity | `info` |
-| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | Standard OpenTelemetry SDK trace endpoint (SDK dependent) | `http://127.0.0.1:4318/v1/traces` |
-| `OTEL_SERVICE_NAME` | Standard OTel service naming mechanism | app-specific |
-| `OTEL_TRACES_SAMPLER` | Standard OTel sampler selector | SDK-defined |
-
-Standard OTel variables are interpreted by the emitting SDK, not automatically by the Rust collector. Port overrides must be propagated consistently to SDK and server configuration.
-
-## 6. Complete CLI command reference (proposed)
-
-**These CLI commands are acceptance targets; help text, flags, and exit codes should be implemented and tested before being presented as functional.**
-
-| Command | Purpose | Key intended flags | Expected outcome |
-|---|---|---|---|
-| `request-xray --help` | Discover commands | `--version` | Documentation, supported commands |
-| `request-xray init` | Generate app wiring/config | `--framework`, `--yes`, `--dry-run` | Safe proposed files/diffs |
-| `request-xray dev` | Start collector + API/dashboard | `--config`, `--collector-port`, `--dashboard-port`, `--no-open` | Local listeners and process logs |
-| `request-xray doctor` | Diagnose telemetry setup | `--json`, `--config` | Specific pass/warn/fail checks |
-| `request-xray demo` | Start synthetic example | `--scenario`, `--no-open` | Fake app and demo trace |
-| `request-xray traces` | List recent traces | `--service`, `--since`, `--error`, `--limit`, `--json` | Summaries |
-| `request-xray inspect <trace-id>` | Inspect a trace | `--tree`, `--json` | Trace + spans |
-| `request-xray compare` | Compare traces (v0.4+) | `--baseline`, `--candidate`, `--json` | Measured differences and caveats |
-| `request-xray explain <trace-id>` | Evidence summary (v0.5+) | `--offline`, `--provider` | Facts and hypotheses |
-| `request-xray export` | Redacted export (v0.4+) | `--trace`, `--format`, `--out` | Local file |
-| `request-xray test` | CI performance budgets (v0.4+) | `--budget`, `--json` | Pass/fail and exit code |
-| `request-xray config validate` | Check configuration | `--file` | Schema errors/normalized config |
-
-### Command details
-
-#### `init`
-
-Must **not** overwrite user files without confirmation. Dry-run shows proposed changes. Detect ESM/CJS, framework type and scripts, but never assume instrumentation order is correct solely based on file names. Generate `instrumentation.mjs` or a TypeScript entrypoint and an example script. Print manual instructions where automation cannot safely modify setup.
-
-#### `dev`
-
-Starts one native Rust binary with bounded listeners and DB. Prints actual dashboard URL; must not call it an OTLP endpoint. On SIGINT/SIGTERM, stop accepting new requests, drain within timeout, flush storage, close DB, and exit. Handle stale PID/ports, process crash, and config errors.
-
-#### `doctor`
-
-Checks: platform binary found, config valid, local port reachable, OTLP endpoint path/protocol, SQLite writable, collector API healthy, app exporter parameters, environment/SDK conflicts, loopback binding, and possible lack of startup preload. When evidence is insufficient, show warning rather than false success.
-
-#### `traces` and `inspect`
-
-Text and JSON output must be bounded, stable and scriptable. Preserve nanoseconds as strings in JSON. `inspect` should distinguish tree edges and span links and mark orphans. Validate IDs before database access.
-
-#### `compare` and `test`
-
-For initial versions, hidden or return an explicit "not supported in this release" error. Never output invented benchmark results. Later budget checks must state sample count, environment, uncertainty, and baseline selection.
-
-### Proposed CLI exit codes
-
-| Exit code | Meaning |
-|---|---|
-| `0` | Successful operation |
-| `1` | General runtime or uncategorized failure |
-| `2` | Invalid usage/configuration |
-| `3` | Storage or collector unavailable |
-| `4` | Unsupported platform or missing native asset |
-| `5` | Performance budget failed (future) |
-
-Avoid changing documented codes without a major release or explicit compatibility policy.
+The [CLI reference](CLI.md) covers the native commands, npm launcher, embedded browser view, and local tarball workflow. Registry publication remains planned.
 
 ## 7. Node SDK API
 
 The [Node SDK guide](NODE_SDK.md) documents the workspace SDK, CommonJS and ESM startup, privacy defaults, manual spans, and use with an existing OpenTelemetry provider.
 
-## 8. User interface walkthrough (planned)
+## 8. User interface walkthrough
 
-### Screen A: Setup / connection status
-
-Displays collector listening, SDK exporter activity, observed services, dropped/rejected spans, and next steps when no telemetry exists. Sample/demo telemetry is visibly labeled.
-
-### Screen B: Trace explorer
-
-Columns: start time, route/operation, duration, status, service count, observed span count, completeness. Filters: service, route, duration, time, errors, trace ID. Pagination must not fetch all spans at once.
-
-### Screen C: Trace detail
-
-Hierarchy on left; waterfall center; inspector side panel. Click a span to view timestamps, safe attributes, events, links and errors. Color is supplemental to textual status. Show missing parents, delayed spans, uninstrumented gaps, and clock uncertainty.
+The dashboard is served by `request-xray dev` when built with the Vite bundle. The [dashboard guide](DASHBOARD.md) covers the trace list, waterfall, inspector, demo, and installed CLI verification.
 
 ### Screen D: Service graph (v0.2+)
 

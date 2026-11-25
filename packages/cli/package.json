@@ -1,0 +1,22 @@
+{
+  "name": "request-xray",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Explore local OpenTelemetry traces",
+  "license": "Apache-2.0",
+  "bin": {
+    "request-xray": "bin/request-xray.cjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "config.schema.json"
+  ],
+  "engines": {
+    "node": "^22.0.0 || ^24.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fahadsidd107/request-xray.git"
+  }
+}

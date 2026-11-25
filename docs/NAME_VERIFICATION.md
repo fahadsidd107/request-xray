@@ -68,3 +68,14 @@ This is a factual verification record and checklist, **not a certificate of avai
 - [ ] Maintainer signs off on the chosen package owner and name
 
 **Do not mark ROADMAP Step 0.1 complete before these checks and ownership decisions are recorded.**
+
+## npm release preflight on 2026-11-25
+
+The public npm registry returned HTTP 404 for each of the seven planned names at 16:45 UTC:
+
+- `request-xray` and `@request-xray/node`
+- `@request-xray/cli-darwin-arm64` and `@request-xray/cli-darwin-x64`
+- `@request-xray/cli-linux-arm64-gnu` and `@request-xray/cli-linux-x64-gnu`
+- `@request-xray/cli-win32-x64`
+
+The workspace's npm CLI reported `ENEEDAUTH`. The owner still needs to verify control of the `request-xray` npm scope, publisher permissions for all seven names and first-publication authentication. A later GitHub check confirmed that [fahadsidd107/request-xray](https://github.com/fahadsidd107/request-xray) is public and the connected GitHub account has admin access.

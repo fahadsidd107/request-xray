@@ -284,24 +284,7 @@ impl Repository {
         limit: u32,
     ) -> Result<Vec<StoredSpan>, StorageError> {
         validate_limit(limit)?;
-        let mut query = QueryBuilder::<Sqlite>::new(
-            "SELECT r.payload AS resource, r.schema_url AS resource_schema_url,
-             s.scope_payload AS scope, s.scope_schema_url, s.payload AS span
-             FROM spans s JOIN resources r ON r.id = s.resource_id WHERE s.trace_id = ",
-        );
-        query.push_bind(trace.as_bytes().as_slice());
-        if let Some((start, id)) = after {
-            query
-                .push(" AND (s.start_ns, s.span_id) > (")
-                .push_bind(start)
-                .push(", ")
-                .push_bind(id.as_bytes().to_vec())
-                .push(")");
-        }
-        query
-            .push(" ORDER BY s.start_ns, s.span_id LIMIT ")
-            .push_bind(limit);
-        query
+        span_query(SPAN_COLUMNS, trace, after, limit)
             .build_query_as::<SpanRow>()
             .fetch_all(&self.pool)
             .await?
@@ -327,43 +310,68 @@ impl Repository {
         if !exists {
             return Ok(None);
         }
-        let mut ids = QueryBuilder::<Sqlite>::new(
-            "SELECT s.start_ns, s.span_id, length(CAST(s.payload AS BLOB)) + length(CAST(s.scope_payload AS BLOB)) +
-             length(CAST(s.scope_schema_url AS BLOB)) + length(CAST(r.payload AS BLOB)) + length(CAST(r.schema_url AS BLOB))
-             FROM spans s JOIN resources r ON r.id = s.resource_id WHERE s.trace_id = "
-        );
-        ids.push_bind(trace.as_bytes().to_vec());
-        if let Some((start, id)) = after {
-            ids.push(" AND (s.start_ns,s.span_id) > (")
-                .push_bind(start)
-                .push(",")
-                .push_bind(id.as_bytes().to_vec())
-                .push(")");
-        }
-        ids.push(" ORDER BY s.start_ns,s.span_id LIMIT ")
-            .push_bind(limit + 1);
-        let keys: Vec<(i64, Vec<u8>, i64)> = ids.build_query_as().fetch_all(&mut *tx).await?;
-        let mut rows = Vec::new();
+        let sizes: Vec<i64> = span_query(
+            "length(CAST(s.payload AS BLOB)) + length(CAST(s.scope_payload AS BLOB)) +
+             length(CAST(s.scope_schema_url AS BLOB)) + length(CAST(r.payload AS BLOB)) +
+             length(CAST(r.schema_url AS BLOB))",
+            trace,
+            after,
+            limit + 1,
+        )
+        .build_query_scalar()
+        .fetch_all(&mut *tx)
+        .await?;
         let mut bytes = 0_i64;
-        for (_, id, size) in keys.iter().take(limit as usize) {
+        let mut count = 0;
+        for size in sizes.iter().take(limit as usize) {
             if size.saturating_add(bytes) > max_stored_bytes {
-                if rows.is_empty() {
+                if count == 0 {
                     return Err(StorageError::PageTooLarge);
                 }
                 break;
             }
-            let row: SpanRow = sqlx::query_as(
-                "SELECT r.payload AS resource, r.schema_url AS resource_schema_url,
-                 s.scope_payload AS scope, s.scope_schema_url, s.payload AS span
-                 FROM spans s JOIN resources r ON r.id = s.resource_id WHERE s.trace_id = ? AND s.span_id = ?"
-            ).bind(trace.as_bytes().as_slice()).bind(id).fetch_one(&mut *tx).await?;
-            rows.push(row.try_into()?);
             bytes += size;
+            count += 1;
         }
+        let rows = span_query(SPAN_COLUMNS, trace, after, count)
+            .build_query_as::<SpanRow>()
+            .fetch_all(&mut *tx)
+            .await?
+            .into_iter()
+            .map(StoredSpan::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
         tx.commit().await?;
-        let more = rows.len() < keys.len();
+        let more = rows.len() < sizes.len();
         Ok(Some((rows, more)))
     }
+}
+
+const SPAN_COLUMNS: &str = "r.payload AS resource, r.schema_url AS resource_schema_url,
+     s.scope_payload AS scope, s.scope_schema_url, s.payload AS span";
+
+fn span_query(
+    columns: &'static str,
+    trace: TraceId,
+    after: Option<(i64, SpanId)>,
+    limit: u32,
+) -> QueryBuilder<'static, Sqlite> {
+    let mut query = QueryBuilder::new("SELECT ");
+    query
+        .push(columns)
+        .push(" FROM spans s JOIN resources r ON r.id = s.resource_id WHERE s.trace_id = ")
+        .push_bind(trace.as_bytes().to_vec());
+    if let Some((start, id)) = after {
+        query
+            .push(" AND (s.start_ns, s.span_id) > (")
+            .push_bind(start)
+            .push(", ")
+            .push_bind(id.as_bytes().to_vec())
+            .push(")");
+    }
+    query
+        .push(" ORDER BY s.start_ns, s.span_id LIMIT ")
+        .push_bind(limit);
+    query
 }
 
 fn validate_limit(limit: u32) -> Result<(), StorageError> {

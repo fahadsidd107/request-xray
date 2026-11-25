@@ -1,0 +1,121 @@
+name: npm CLI tarballs
+
+on:
+  pull_request:
+    paths:
+      - 'Cargo.*'
+      - 'rust-toolchain.toml'
+      - 'crates/**'
+      - 'schemas/vendor/**'
+      - 'packages/cli/**'
+      - 'packages/dashboard/**'
+      - 'packages/query-client/**'
+      - 'packages/node/**'
+      - 'examples/express-basic/**'
+      - 'test/dashboard/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'scripts/*npm-*.cjs'
+      - 'scripts/verify-fresh-install.sh'
+      - 'README.md'
+      - 'docs/NODE_SDK.md'
+      - 'tests/fixtures/otlp/**'
+      - '.github/workflows/npm-cli.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pack:
+    name: Pack and smoke test ${{ matrix.platform.target }} on Node ${{ matrix.node }}
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+        platform:
+          - runner: macos-15
+            target: darwin-arm64
+            binary: request-xray-native
+          - runner: macos-15-intel
+            target: darwin-x64
+            binary: request-xray-native
+          - runner: ubuntu-22.04-arm
+            target: linux-arm64-gnu
+            binary: request-xray-native
+          - runner: ubuntu-22.04
+            target: linux-x64-gnu
+            binary: request-xray-native
+          - runner: windows-2022
+            target: win32-x64
+            binary: request-xray-native.exe
+    runs-on: ${{ matrix.platform.runner }}
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '11.0'
+      XRAY_REQUIRE_DASHBOARD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: pnpm/action-setup@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.85.0'
+      - name: Build dashboard
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @request-xray/query-client build
+          pnpm --filter @request-xray/dashboard build
+      - name: Build native executable
+        run: cargo build --locked --release -p xray-cli
+      - name: Stage platform and launcher
+        run: node scripts/stage-npm-cli.cjs target/release/${{ matrix.platform.binary }} npm-cli-stage ${{ matrix.platform.target }}
+      - name: Smoke test installed tarballs
+        run: node scripts/smoke-npm-cli.cjs npm-cli-stage
+      - name: Playwright dashboard smoke and benchmark
+        if: matrix.platform.target == 'linux-x64-gnu' && matrix.node == 22
+        run: |
+          pnpm --filter @request-xray/node build
+          pnpm exec playwright install --with-deps chromium
+          cargo run --locked -p xray-otlp --example dashboard_fixtures -- target/dashboard-playwright/fixtures
+          pnpm test:dashboard
+      - name: Pack SDK and verify the fresh-install guide
+        if: matrix.platform.target == 'linux-x64-gnu' || matrix.platform.target == 'darwin-arm64'
+        shell: bash
+        env:
+          XRAY_AUDIT_PACKAGES: '1'
+        run: |
+          set -o pipefail
+          pnpm --filter @request-xray/node build
+          node scripts/pack-npm-sdk.cjs npm-cli-stage
+          bash scripts/verify-fresh-install.sh npm-cli-stage/request-xray-[0-9]*.tgz \
+            npm-cli-stage/request-xray-cli-*.tgz npm-cli-stage/request-xray-node-*.tgz \
+            | tee npm-cli-stage/fresh-install.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: request-xray-${{ matrix.platform.target }}-node${{ matrix.node }}
+          path: |
+            npm-cli-stage/*.tgz
+            npm-cli-stage/*.sha256
+            npm-cli-stage/*-pack.json
+            npm-cli-stage/fresh-install.log
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.platform.target == 'linux-x64-gnu' && matrix.node == 22
+        with:
+          name: request-xray-dashboard-verification
+          path: target/dashboard-playwright/screenshots/
+          if-no-files-found: ignore
+
+  sbom:
+    name: Generate source dependency SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          format: spdx-json
+          artifact-name: request-xray-source.spdx.json
+          upload-release-assets: false
+          dependency-snapshot: false

@@ -7,8 +7,10 @@
   "scripts": {
     "lint": "corepack pnpm -r --if-present lint",
     "typecheck": "corepack pnpm -r --if-present typecheck",
-    "test": "corepack pnpm -r --if-present test"
+    "test": "corepack pnpm -r --if-present test",
+    "test:dashboard": "playwright test --config test/dashboard/playwright.config.cjs"
   },
+  "devDependencies": { "@playwright/test": "1.65.1" },
   "pnpm": {
     "overrides": {
       "body-parser": "^1.20.9",
